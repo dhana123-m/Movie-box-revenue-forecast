@@ -170,13 +170,19 @@ Disable by setting `FRONTEND_DIST_PATH` to a non-existent folder in `backend/.en
 
 ### 5. Cloud deployment (Render, free)
 
-The repo ships a [Render](https://render.com) blueprint (`render.yaml`) so the
-whole stack — API **and** built frontend — deploys to one free URL:
+The repo ships a [Render](https://render.com) blueprint (`render.yaml`) that
+deploys **two separate services**:
+
+1. `movie-box-office-backend` — FastAPI + TensorFlow web service.
+2. `movie-box-office-frontend` — React static site that talks to the backend
+   through `VITE_API_BASE_URL` (built into the bundle at build time).
+
+Deploy:
 
 1. Push this repository to GitHub (`git remote add origin <url>` + `git push`).
 2. On Render: **Dashboard → New → Blueprint**, select the repo.
-3. Render installs the backend, runs `npm run build` for the frontend, and
-   starts `uvicorn` on the assigned `$PORT`. Open the generated URL.
+3. Render creates both services and wires them together. Open the frontend URL
+   (the backend URL is auto-configured as its API base).
 
 Deployment facts:
 
@@ -184,7 +190,10 @@ Deployment facts:
   training history are committed to git and loaded on boot.
 - **No dataset downloads** — the processed CSV is committed; SQLite seeds from
   it automatically on first start.
-- **One origin, no CORS** — FastAPI serves `frontend/dist` with SPA fallback.
+- **CORS** — the backend allows the frontend origin via `CORS_ORIGINS`;
+  dev origins (`localhost:5173`) are always allowed by the default.
+- **SPA routing** — the static site ships `_redirects` (`/* -> /index.html`)
+  so client-side routes like `/forecast` work on direct URLs.
 - **SQLite is ephemeral** — data resets on redeploy (fine for a demo; the API
   reseeds automatically).
 - **Retraining is disabled in production** (`ALLOW_RETRAIN=false`).

@@ -1,29 +1,32 @@
-# Render blueprint — https://render.com/docs/blueprint-spec
+# Render blueprint -- https://render.com/docs/blueprint-spec
 #
-# Deploy (2 minutes, no paid plan needed):
+# Deploys two separate services:
+#   1. movie-box-office-backend   -- FastAPI + TensorFlow web service
+#   2. movie-box-office-frontend  -- React static site that calls the API
+#
+# To deploy:
 #   1. Push this repository to GitHub (private or public).
-#   2. On https://render.com go to  Dashboard -> New -> Blueprint, pick the repo.
-#   3. Render creates the web service below, installs the backend, builds the
-#      React bundle and serves everything on one URL.
+#   2. On https://render.com go to Dashboard -> New -> Blueprint, pick the repo.
+#   3. Render creates the backend web service and the frontend static site,
+#      then wires them together via VITE_API_BASE_URL / CORS_ORIGINS below.
 #
 # Notes:
-#   * The trained model + preprocessor are committed to git, so the service
-#     does not re-train — it loads the artifacts on boot and seeds the SQLite
+#   * The trained model + preprocessor are committed to git, so the backend
+#     does not re-train -- it loads the artifacts on boot and seeds the SQLite
 #     database from backend/data/processed/tmdb_5000_processed.csv.
 #   * SQLite lives on Render's ephemeral disk: predictions persist for the
 #     life of the service instance and reset on redeploy (fine for a demo).
 #   * Retraining is disabled in production (ALLOW_RETRAIN=false).
 
 services:
+  # ------------------------------------------------------------ backend ----
   - type: web
-    name: movie-box-office-forecast
+    name: movie-box-office-backend
     runtime: python
     plan: free
-    buildCommand: >
-      npm ci --prefix frontend &&
-      npm run build --prefix frontend &&
-      pip install --no-cache-dir -r backend/requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --app-dir backend
+    rootDir: backend
+    buildCommand: pip install --no-cache-dir -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION
@@ -33,8 +36,18 @@ services:
       - key: ALLOW_RETRAIN
         value: "false"
       - key: CORS_ORIGINS
-        value: https://movie-box-office-forecast.onrender.com
+        value: https://movie-box-office-frontend.onrender.com
       - key: MAX_UPLOAD_BYTES
         value: "5242880"
       - key: INR_PER_USD
         value: "83.0"
+
+  # ----------------------------------------------------------- frontend ----
+  - type: static
+    name: movie-box-office-frontend
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    publishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://movie-box-office-backend.onrender.com/api

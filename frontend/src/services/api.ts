@@ -18,9 +18,7 @@ import type {
   YearlyStat,
 } from "../types";
 
-const BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
-  (import.meta.env.DEV ? "/api" : "http://localhost:8000/api");
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "/api";
 
 export class ApiError extends Error {
   code: string;
@@ -40,7 +38,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   } catch {
     throw new ApiError(
       "NETWORK_ERROR",
-      "Cannot reach the backend server. Make sure it is running on port 8000.",
+      "Cannot reach the backend server. Please try again later.",
       null,
     );
   }

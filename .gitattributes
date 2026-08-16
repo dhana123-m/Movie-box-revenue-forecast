@@ -1,0 +1,2 @@
+# Render's static-site redirect parser requires LF-only line endings.
+frontend/public/_redirects text eol=lf
