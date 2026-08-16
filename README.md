@@ -168,6 +168,29 @@ FastAPI mounts `/assets` statically, returns `index.html` for any non-`/api`
 route (SPA routing) and keeps every `/api/*` endpoint on the error envelope.
 Disable by setting `FRONTEND_DIST_PATH` to a non-existent folder in `backend/.env`.
 
+### 5. Cloud deployment (Render, free)
+
+The repo ships a [Render](https://render.com) blueprint (`render.yaml`) so the
+whole stack — API **and** built frontend — deploys to one free URL:
+
+1. Push this repository to GitHub (`git remote add origin <url>` + `git push`).
+2. On Render: **Dashboard → New → Blueprint**, select the repo.
+3. Render installs the backend, runs `npm run build` for the frontend, and
+   starts `uvicorn` on the assigned `$PORT`. Open the generated URL.
+
+Deployment facts:
+
+- **No re-training on the server** — the trained model, preprocessor and
+  training history are committed to git and loaded on boot.
+- **No dataset downloads** — the processed CSV is committed; SQLite seeds from
+  it automatically on first start.
+- **One origin, no CORS** — FastAPI serves `frontend/dist` with SPA fallback.
+- **SQLite is ephemeral** — data resets on redeploy (fine for a demo; the API
+  reseeds automatically).
+- **Retraining is disabled in production** (`ALLOW_RETRAIN=false`).
+- Free-tier builds have 512 MB RAM; TensorFlow installs fine but if the build
+  ever OOMs, bump the service to the paid `Starter` plan and redeploy.
+
 ---
 
 ## 📁 Project Structure
