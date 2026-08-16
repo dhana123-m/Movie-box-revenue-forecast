@@ -26,21 +26,28 @@ A full-stack college mini-project that predicts **worldwide box office revenue**
 ## 🧠 The Model
 
 - **Task**: regression on `log1p(revenue)` (revenue is highly skewed).
-- **Architecture**: `256 → 128 → 64 → 32` ReLU dense layers with **BatchNorm**, **Dropout (0.30/0.25/0.20/0.20)** and **L2 (1e-4)** regularization; final linear output.
+- **Architecture**: `512 → 256 → 128 → 64` ReLU dense layers, each with **BatchNorm** and **Dropout (0.35/0.30/0.25/0.20)**, **L2 (1e-4)** regularization and a final linear output.
 - **Loss**: Huber (delta = 1.0) · **Optimizer**: Adam (lr 1e-3, ReduceLROnPlateau) · **Early stopping**: patience 25 on val loss.
 - **Features (34)**: 16 engineered numerics (budget, runtime, popularity, rating, vote count, release timing, cast star power, director/studio track record, …) + **18 genre multi-hot** flags.
 - **Dataset**: 3,165 cleaned movies from TMDB 5000 (budget>0, revenue>0, runtime 30–400, status=Released).
 - **Data split**: 70 / 15 / 15 (stratified by revenue quartile).
+- The deployed hyper-parameters were selected by a bounded **grid search** (11 trials, validation MAE). See [ML experiments](#-ml-experiments).
 
 ### Test performance (held-out)
 
 | Model | R² (log) | RMSE (log) |
 |---|---|---|
-| **Deep Neural Network** | **0.653** | 1.217 |
-| Random Forest | 0.649 | 1.223 |
-| XGBoost | 0.628 | 1.260 |
-| Gradient Boosting | 0.619 | 1.275 |
+| **Deep Neural Network** | **0.685** | 1.159 |
 | Linear Regression | 0.690 | 1.150 |
+| Random Forest | 0.651 | 1.221 |
+| Extra Trees | 0.636 | 1.246 |
+| XGBoost | 0.632 | 1.254 |
+| Gradient Boosting | 0.632 | 1.254 |
+| AdaBoost | 0.520 | 1.432 |
+| K-Nearest Neighbors | 0.490 | 1.475 |
+| Decision Tree | 0.228 | 1.815 |
+
+The DNN is the best *non-linear* model on log-space RMSE/MAE and essentially ties Linear Regression on R² while being far more robust in the original revenue space (MAE **$55.4M** vs. the linear model's $53.8M — the DNN does not overshoot blockbusters the way trees and the linear model do).
 
 ### Performance labels
 
@@ -55,6 +62,49 @@ Predicted revenue is classified against the budget via a multiplier:
 | `BLOCKBUSTER` | ≥ 8.0x |
 
 > ⚠️ **Disclaimer**: Predictions are statistical estimates. Confidence reflects training accuracy + input completeness, not a probability of success. Use the 95% range, not the point estimate.
+
+---
+
+## 🔬 ML Experiments
+
+Artifacts are generated under `backend/models/evaluation/` (CSV/JSON/PNG).
+
+### Hyper-parameter tuning
+
+`backend/training/hyperparameter_tuning.py` sweeps **11 configurations** over layer width/depth, dropout strength, L2 and learning rate, scoring each by validation MAE.
+
+```bat
+cd backend
+.venv\Scripts\python training\hyperparameter_tuning.py
+```
+
+Top results (validation MAE, log-revenue, lower is better):
+
+| Config | Dropout | lr | L2 | Val MAE |
+|---|---|---|---|---|
+| **512→256→128→64** ✅ | 0.35/0.30/0.25/0.20 | 1e-3 | 1e-4 | **0.7209** |
+| 256→192→128→64→32 | 0.30/0.25/0.20/0.15/0.15 | 1e-3 | 1e-4 | 0.7319 |
+| 256→128→64→32 | 0.30/0.25/0.20/0.20 | 3e-3 | 1e-4 | 0.7457 |
+| 256→128→64→32 (baseline) | 0.30/0.25/0.20/0.20 | 1e-3 | 1e-4 | 0.7702 |
+
+The winning configuration became the production default (`train.py`), lifting test R²(log) from **0.653 → 0.685** and cutting test MAE from **$66.2M → $55.4M**.
+
+### Feature importance
+
+Permutation importance on the held-out test set (drop in MAE when each feature is shuffled). Top inputs:
+
+1. `vote_count_log` (audience reach)
+2. `budget_log`
+3. `budget_per_runtime` (spend intensity)
+4. `popularity`
+5. `release_year` + release-season features
+6. Genre flags (`Family`, `Science Fiction`, `Romance`, `Documentary`…)
+
+Visualised live on the **Model Performance** page.
+
+### Baselines
+
+Eight classical regressors compete with the DNN on the same split & feature matrix: Linear Regression, Random Forest, Gradient Boosting, XGBoost, Extra Trees, AdaBoost, K-Nearest Neighbors and Decision Tree.
 
 ---
 
@@ -102,6 +152,22 @@ Open http://localhost:5173 — the Vite proxy forwards `/api` to the backend on 
 | `run_backend.bat` | Starts the FastAPI backend |
 | `run_frontend.bat` | Starts the Vite dev server |
 
+### 4. Single-port production mode (optional)
+
+After `npm run build` the backend also serves the built frontend on the same
+port, so the entire app lives on **one origin** — no CORS, no proxy:
+
+```bat
+cd frontend && npm run build
+cd ..\backend
+.venv\Scripts\python -m uvicorn app.main:app --port 8000
+:: open http://localhost:8000
+```
+
+FastAPI mounts `/assets` statically, returns `index.html` for any non-`/api`
+route (SPA routing) and keeps every `/api/*` endpoint on the error envelope.
+Disable by setting `FRONTEND_DIST_PATH` to a non-existent folder in `backend/.env`.
+
 ---
 
 ## 📁 Project Structure
@@ -125,7 +191,8 @@ Movie-box-revenue-forecast/
 │   │   └── utils/                  # error envelope, formatting helpers
 │   ├── training/
 │   │   ├── feature_engineering.py  # raw CSV -> processed dataset
-│   │   ├── model.py                # build_dnn / train_dnn
+│   │   ├── model.py                # build_dnn / train_dnn (configurable)
+│   │   ├── hyperparameter_tuning.py # DNN hyper-parameter grid search
 │   │   ├── evaluate.py             # baselines + evaluation plots
 │   │   └── train.py                # full pipeline entrypoint
 │   ├── scripts/download_data.py    # downloads TMDB 5000 CSVs

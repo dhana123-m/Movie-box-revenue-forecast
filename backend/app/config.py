@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     RAW_CREDITS_PATH: str = str(RAW_DATA_DIR / "tmdb_5000_credits.csv")
     DEMO_DATA_PATH: str = str(RAW_DATA_DIR / "demo_movies.csv")
 
+    # Built frontend (optional). When the folder exists, FastAPI serves the
+    # production bundle on the same port, enabling single-port deployment.
+    FRONTEND_DIST_PATH: str = str(BACKEND_DIR.parent / "frontend" / "dist")
+
     # CORS
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
 

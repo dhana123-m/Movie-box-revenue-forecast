@@ -2,7 +2,7 @@
   "model_version": "1.0.0",
   "model_name": "revenue_dnn",
   "model_type": "Deep Neural Network (Multi-Layer Perceptron)",
-  "training_date": "2026-08-16T11:04:10.082519",
+  "training_date": "2026-08-16T13:48:44.081264",
   "dataset_size": 3165,
   "feature_count": 34,
   "tensorflow_version": "2.21.0",
@@ -10,13 +10,13 @@
   "python_version": "3.12.9",
   "framework": "TensorFlow / Keras",
   "metrics": {
-    "mae_log": 0.819,
-    "rmse_log": 1.2171,
-    "r2_log": 0.6529,
-    "mae_revenue": 66220462.44,
-    "rmse_revenue": 165090969.23,
-    "r2_revenue": 0.3817,
-    "mape_pct": 12735.97
+    "mae_log": 0.7641,
+    "rmse_log": 1.1585,
+    "r2_log": 0.6854,
+    "mae_revenue": 55451167.18,
+    "rmse_revenue": 138192621.12,
+    "r2_revenue": 0.5667,
+    "mape_pct": 6216.19
   },
   "training_hyperparameters": {
     "epochs": 300,

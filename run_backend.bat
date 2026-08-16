@@ -15,6 +15,7 @@ if not exist ".venv\Scripts\python.exe" (
 echo Starting Movie Box Office Revenue Forecast API...
 echo   Swagger UI: http://localhost:8000/docs
 echo   Health:     http://localhost:8000/api/health
+echo   App UI:     http://localhost:8000  (served automatically when frontend\dist exists)
 echo Press Ctrl+C to stop.
 echo.
 

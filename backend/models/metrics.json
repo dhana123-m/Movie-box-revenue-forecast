@@ -10,257 +10,363 @@
     "split": "70 / 15 / 15 (stratified by revenue quartile)"
   },
   "dnn": {
-    "mae_log": 0.819,
-    "rmse_log": 1.2171,
-    "r2_log": 0.6529,
-    "mae_revenue": 66220462.44,
-    "rmse_revenue": 165090969.23,
-    "r2_revenue": 0.3817,
-    "mape_pct": 12735.97
+    "mae_log": 0.7641,
+    "rmse_log": 1.1585,
+    "r2_log": 0.6854,
+    "mae_revenue": 55451167.18,
+    "rmse_revenue": 138192621.12,
+    "r2_revenue": 0.5667,
+    "mape_pct": 6216.19
   },
   "baselines": {
     "Linear Regression": {
       "model": "Linear Regression",
-      "mae_log": 0.746,
+      "mae_log": 0.7461,
       "rmse_log": 1.1502,
-      "r2_log": 0.6899,
-      "mae_revenue": 53726173.22,
-      "rmse_revenue": 133012952.7,
-      "r2_revenue": 0.5986,
-      "mape_pct": 4805.42
+      "r2_log": 0.69,
+      "mae_revenue": 53771237.33,
+      "rmse_revenue": 133410186.18,
+      "r2_revenue": 0.5962,
+      "mape_pct": 4757.68
     },
     "Random Forest": {
       "model": "Random Forest",
-      "mae_log": 0.77,
-      "rmse_log": 1.2233,
-      "r2_log": 0.6493,
-      "mae_revenue": 51219402.37,
-      "rmse_revenue": 121226583.29,
-      "r2_revenue": 0.6666,
-      "mape_pct": 14848.27
+      "mae_log": 0.7711,
+      "rmse_log": 1.2205,
+      "r2_log": 0.6509,
+      "mae_revenue": 51344683.9,
+      "rmse_revenue": 121172711.5,
+      "r2_revenue": 0.6669,
+      "mape_pct": 8228.47
     },
     "Gradient Boosting": {
       "model": "Gradient Boosting",
-      "mae_log": 0.7739,
-      "rmse_log": 1.2754,
-      "r2_log": 0.6188,
-      "mae_revenue": 51880443.25,
-      "rmse_revenue": 122032630.51,
-      "r2_revenue": 0.6621,
-      "mape_pct": 18601.83
+      "mae_log": 0.764,
+      "rmse_log": 1.2535,
+      "r2_log": 0.6318,
+      "mae_revenue": 50642741.3,
+      "rmse_revenue": 121370995.13,
+      "r2_revenue": 0.6658,
+      "mape_pct": 14526.29
+    },
+    "K-Nearest Neighbors": {
+      "model": "K-Nearest Neighbors",
+      "mae_log": 0.9469,
+      "rmse_log": 1.475,
+      "r2_log": 0.4902,
+      "mae_revenue": 66332395.21,
+      "rmse_revenue": 156026105.08,
+      "r2_revenue": 0.4477,
+      "mape_pct": 46200.42
+    },
+    "Decision Tree": {
+      "model": "Decision Tree",
+      "mae_log": 1.115,
+      "rmse_log": 1.8148,
+      "r2_log": 0.2281,
+      "mae_revenue": 76226548.33,
+      "rmse_revenue": 150310196.42,
+      "r2_revenue": 0.4874,
+      "mape_pct": 39691.41
+    },
+    "Extra Trees": {
+      "model": "Extra Trees",
+      "mae_log": 0.7701,
+      "rmse_log": 1.2456,
+      "r2_log": 0.6364,
+      "mae_revenue": 51479617.64,
+      "rmse_revenue": 124046292.65,
+      "r2_revenue": 0.6509,
+      "mape_pct": 9742.29
+    },
+    "AdaBoost": {
+      "model": "AdaBoost",
+      "mae_log": 0.9627,
+      "rmse_log": 1.4319,
+      "r2_log": 0.5195,
+      "mae_revenue": 68769264.84,
+      "rmse_revenue": 179723563.85,
+      "r2_revenue": 0.2672,
+      "mape_pct": 54244.12
     },
     "XGBoost": {
       "model": "XGBoost",
-      "mae_log": 0.7541,
-      "rmse_log": 1.2598,
-      "r2_log": 0.628,
-      "mae_revenue": 50172249.34,
-      "rmse_revenue": 124373718.47,
-      "r2_revenue": 0.6491,
-      "mape_pct": 13920.58
+      "mae_log": 0.7578,
+      "rmse_log": 1.2537,
+      "r2_log": 0.6317,
+      "mae_revenue": 49996796.21,
+      "rmse_revenue": 123283878.21,
+      "r2_revenue": 0.6552,
+      "mape_pct": 15761.52
     }
   },
   "comparison": [
     {
       "model": "Deep Neural Network",
-      "mae_log": 0.819,
-      "rmse_log": 1.2171,
-      "r2_log": 0.6529,
-      "mae_revenue": 66220462.44,
-      "rmse_revenue": 165090969.23,
-      "r2_revenue": 0.3817,
-      "mape_pct": 12735.97
+      "mae_log": 0.7641,
+      "rmse_log": 1.1585,
+      "r2_log": 0.6854,
+      "mae_revenue": 55451167.18,
+      "rmse_revenue": 138192621.12,
+      "r2_revenue": 0.5667,
+      "mape_pct": 6216.19
     },
     {
       "model": "Linear Regression",
-      "mae_log": 0.746,
+      "mae_log": 0.7461,
       "rmse_log": 1.1502,
-      "r2_log": 0.6899,
-      "mae_revenue": 53726173.22,
-      "rmse_revenue": 133012952.7,
-      "r2_revenue": 0.5986,
-      "mape_pct": 4805.42
+      "r2_log": 0.69,
+      "mae_revenue": 53771237.33,
+      "rmse_revenue": 133410186.18,
+      "r2_revenue": 0.5962,
+      "mape_pct": 4757.68
     },
     {
       "model": "Random Forest",
-      "mae_log": 0.77,
-      "rmse_log": 1.2233,
-      "r2_log": 0.6493,
-      "mae_revenue": 51219402.37,
-      "rmse_revenue": 121226583.29,
-      "r2_revenue": 0.6666,
-      "mape_pct": 14848.27
+      "mae_log": 0.7711,
+      "rmse_log": 1.2205,
+      "r2_log": 0.6509,
+      "mae_revenue": 51344683.9,
+      "rmse_revenue": 121172711.5,
+      "r2_revenue": 0.6669,
+      "mape_pct": 8228.47
     },
     {
       "model": "Gradient Boosting",
-      "mae_log": 0.7739,
-      "rmse_log": 1.2754,
-      "r2_log": 0.6188,
-      "mae_revenue": 51880443.25,
-      "rmse_revenue": 122032630.51,
-      "r2_revenue": 0.6621,
-      "mape_pct": 18601.83
+      "mae_log": 0.764,
+      "rmse_log": 1.2535,
+      "r2_log": 0.6318,
+      "mae_revenue": 50642741.3,
+      "rmse_revenue": 121370995.13,
+      "r2_revenue": 0.6658,
+      "mape_pct": 14526.29
+    },
+    {
+      "model": "K-Nearest Neighbors",
+      "mae_log": 0.9469,
+      "rmse_log": 1.475,
+      "r2_log": 0.4902,
+      "mae_revenue": 66332395.21,
+      "rmse_revenue": 156026105.08,
+      "r2_revenue": 0.4477,
+      "mape_pct": 46200.42
+    },
+    {
+      "model": "Decision Tree",
+      "mae_log": 1.115,
+      "rmse_log": 1.8148,
+      "r2_log": 0.2281,
+      "mae_revenue": 76226548.33,
+      "rmse_revenue": 150310196.42,
+      "r2_revenue": 0.4874,
+      "mape_pct": 39691.41
+    },
+    {
+      "model": "Extra Trees",
+      "mae_log": 0.7701,
+      "rmse_log": 1.2456,
+      "r2_log": 0.6364,
+      "mae_revenue": 51479617.64,
+      "rmse_revenue": 124046292.65,
+      "r2_revenue": 0.6509,
+      "mape_pct": 9742.29
+    },
+    {
+      "model": "AdaBoost",
+      "mae_log": 0.9627,
+      "rmse_log": 1.4319,
+      "r2_log": 0.5195,
+      "mae_revenue": 68769264.84,
+      "rmse_revenue": 179723563.85,
+      "r2_revenue": 0.2672,
+      "mape_pct": 54244.12
     },
     {
       "model": "XGBoost",
-      "mae_log": 0.7541,
-      "rmse_log": 1.2598,
-      "r2_log": 0.628,
-      "mae_revenue": 50172249.34,
-      "rmse_revenue": 124373718.47,
-      "r2_revenue": 0.6491,
-      "mape_pct": 13920.58
+      "mae_log": 0.7578,
+      "rmse_log": 1.2537,
+      "r2_log": 0.6317,
+      "mae_revenue": 49996796.21,
+      "rmse_revenue": 123283878.21,
+      "r2_revenue": 0.6552,
+      "mape_pct": 15761.52
     }
   ],
   "feature_importance": [
     {
       "feature": "vote_count_log",
-      "importance": 0.36453
+      "importance": 0.48482
     },
     {
       "feature": "budget_log",
-      "importance": 0.19176
+      "importance": 0.21307
     },
     {
       "feature": "budget_per_runtime",
-      "importance": 0.06573
-    },
-    {
-      "feature": "popularity",
-      "importance": 0.05964
+      "importance": 0.05118
     },
     {
       "feature": "release_year",
-      "importance": 0.02399
+      "importance": 0.04937
     },
     {
-      "feature": "Family",
-      "importance": 0.01372
-    },
-    {
-      "feature": "Science Fiction",
-      "importance": 0.01343
-    },
-    {
-      "feature": "cast_star_power",
-      "importance": 0.01249
-    },
-    {
-      "feature": "genre_count",
-      "importance": 0.01228
-    },
-    {
-      "feature": "company_frequency",
-      "importance": 0.01079
-    },
-    {
-      "feature": "vote_average",
-      "importance": 0.00986
-    },
-    {
-      "feature": "Romance",
-      "importance": 0.00969
-    },
-    {
-      "feature": "director_frequency",
-      "importance": 0.00937
-    },
-    {
-      "feature": "Documentary",
-      "importance": 0.00921
-    },
-    {
-      "feature": "Drama",
-      "importance": 0.00857
+      "feature": "popularity",
+      "importance": 0.04375
     },
     {
       "feature": "runtime",
-      "importance": 0.00851
+      "importance": 0.02092
     },
     {
-      "feature": "Animation",
-      "importance": 0.00749
+      "feature": "Science Fiction",
+      "importance": 0.01744
     },
     {
-      "feature": "Western",
-      "importance": 0.00587
+      "feature": "cast_star_power",
+      "importance": 0.01428
+    },
+    {
+      "feature": "company_frequency",
+      "importance": 0.01338
     },
     {
       "feature": "Fantasy",
-      "importance": 0.0058
-    },
-    {
-      "feature": "Horror",
-      "importance": 0.00569
-    },
-    {
-      "feature": "Comedy",
-      "importance": 0.00554
-    },
-    {
-      "feature": "History",
-      "importance": 0.00431
-    },
-    {
-      "feature": "War",
-      "importance": 0.00373
-    },
-    {
-      "feature": "Mystery",
-      "importance": 0.00245
-    },
-    {
-      "feature": "Music",
-      "importance": 0.00245
+      "importance": 0.01229
     },
     {
       "feature": "Crime",
-      "importance": 0.00229
+      "importance": 0.01163
     },
     {
-      "feature": "Action",
-      "importance": 0.00217
+      "feature": "Western",
+      "importance": 0.01102
     },
     {
-      "feature": "Adventure",
-      "importance": 0.00197
+      "feature": "Family",
+      "importance": 0.00886
+    },
+    {
+      "feature": "genre_count",
+      "importance": 0.00838
+    },
+    {
+      "feature": "Documentary",
+      "importance": 0.00712
     },
     {
       "feature": "release_quarter",
-      "importance": 0.00161
+      "importance": 0.00672
+    },
+    {
+      "feature": "vote_average",
+      "importance": 0.00634
+    },
+    {
+      "feature": "Horror",
+      "importance": 0.00626
     },
     {
       "feature": "language_is_en",
-      "importance": 0.0012
+      "importance": 0.00614
     },
     {
-      "feature": "Thriller",
-      "importance": -4e-05
+      "feature": "director_frequency",
+      "importance": 0.00596
+    },
+    {
+      "feature": "Adventure",
+      "importance": 0.00593
+    },
+    {
+      "feature": "Drama",
+      "importance": 0.00534
+    },
+    {
+      "feature": "Comedy",
+      "importance": 0.00501
+    },
+    {
+      "feature": "Music",
+      "importance": 0.00203
     },
     {
       "feature": "release_month",
-      "importance": -0.00127
+      "importance": 0.00188
     },
     {
-      "feature": "cast_size",
-      "importance": -0.00178
+      "feature": "Romance",
+      "importance": 0.00116
     },
     {
       "feature": "release_weekday",
-      "importance": -0.00495
+      "importance": 0.0002
+    },
+    {
+      "feature": "Action",
+      "importance": 9e-05
+    },
+    {
+      "feature": "Thriller",
+      "importance": -0.00159
+    },
+    {
+      "feature": "cast_size",
+      "importance": -0.00299
+    },
+    {
+      "feature": "Animation",
+      "importance": -0.00312
+    },
+    {
+      "feature": "War",
+      "importance": -0.00384
+    },
+    {
+      "feature": "History",
+      "importance": -0.00413
+    },
+    {
+      "feature": "Mystery",
+      "importance": -0.00415
     }
   ],
   "architecture": {
     "layers": [
       "Input",
+      "Dense(512, relu) + BatchNorm + Dropout(0.35)",
       "Dense(256, relu) + BatchNorm + Dropout(0.30)",
       "Dense(128, relu) + BatchNorm + Dropout(0.25)",
-      "Dense(64, relu) + Dropout(0.20)",
-      "Dense(32, relu)",
+      "Dense(64, relu) + BatchNorm + Dropout(0.20)",
       "Dense(1, linear)"
     ],
-    "optimizer": "Adam (lr 1e-3, ReduceLROnPlateau on plateau)",
+    "optimizer": "Adam (lr 0.001, ReduceLROnPlateau on plateau)",
     "loss": "Huber (delta=1.0)",
-    "metric": "MAE"
+    "metric": "MAE",
+    "l2": 0.0001
+  },
+  "hyperparameter_tuning": {
+    "note": "Results in models/evaluation/tuning_results.{csv,json,png}",
+    "best_config": {
+      "units": [
+        512,
+        256,
+        128,
+        64
+      ],
+      "dropouts": [
+        0.35,
+        0.3,
+        0.25,
+        0.2
+      ],
+      "batch_norm": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "learning_rate": 0.001,
+      "l2": 0.0001
+    }
   }
 }

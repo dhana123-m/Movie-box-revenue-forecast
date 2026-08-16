@@ -5,13 +5,22 @@ Run from the backend directory:
     uvicorn app.main:app --reload
 
 Or run the included scripts (run_backend.bat).
+
+When ``frontend/dist`` exists (i.e. after ``npm run build``), the API also
+serves the static frontend on the same port with SPA fallback, so the whole
+application runs on a single origin (http://localhost:8000).
 """
 
+import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import models  # noqa: F401  (register SQLAlchemy tables)
 from .config import settings
@@ -27,6 +36,8 @@ from .routes import (
 from .services.db_service import seed_database
 from .services.model_service import get_model_service
 from .utils.errors import register_exception_handlers
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -82,12 +93,42 @@ app.include_router(training_router)
 app.include_router(movies_router)
 
 
-@app.get("/")
-def root():
-    return {
-        "app": settings.APP_NAME,
-        "version": settings.APP_VERSION,
-        "docs": "/docs",
-        "redoc": "/redoc",
-        "health": "/api/health",
-    }
+# ----------------------------------------------------------- static frontend --
+def _register_static_frontend() -> bool:
+    """Mount the built React app (frontend/dist) when it exists.
+
+    Returns True when the SPA was mounted, in which case all non-API GET
+    routes fall back to ``index.html`` (client-side routing).
+    """
+    dist = Path(settings.FRONTEND_DIST_PATH)
+    if not dist.is_dir():
+        return False
+
+    assets = dist / "assets"
+    if assets.is_dir():
+        app.mount("/assets", StaticFiles(directory=assets), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def _spa_fallback(full_path: str) -> FileResponse:
+        if full_path.startswith("api/"):
+            raise StarletteHTTPException(status_code=404, detail="Not Found")
+        candidate = dist / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(dist / "index.html")
+
+    return True
+
+
+if _register_static_frontend():
+    logger.info("Serving frontend build from %s", settings.FRONTEND_DIST_PATH)
+else:
+    @app.get("/")
+    def root():
+        return {
+            "app": settings.APP_NAME,
+            "version": settings.APP_VERSION,
+            "docs": "/docs",
+            "redoc": "/redoc",
+            "health": "/api/health",
+        }

@@ -133,6 +133,38 @@ export function ModelPerformancePage() {
         />
       </Card>
 
+      <Card>
+        <h2 className="section-title mb-1">Feature Importance</h2>
+        <p className="section-sub mb-4">
+          Permutation importance (drop in test MAE when a feature is shuffled) · top 10 of 34 inputs
+        </p>
+        <div className="space-y-2.5">
+          {m?.feature_importance?.slice(0, 10).map((f) => {
+            const max = m.feature_importance[0]?.importance ?? 1;
+            const pct = Math.max(0, (f.importance / max) * 100);
+            return (
+              <div key={f.feature} className="flex items-center gap-3">
+                <span className="w-40 shrink-0 truncate text-right text-xs font-medium text-zinc-300">
+                  {f.feature}
+                </span>
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-violet-500"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <span className="w-16 shrink-0 font-mono text-[11px] text-zinc-500">
+                  {f.importance.toFixed(4)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <p className="mt-4 text-xs text-zinc-500">
+          Budget and audience signals (vote count, popularity) dominate — release timing and genre flags follow.
+        </p>
+      </Card>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <h2 className="section-title mb-4">Dataset Split</h2>

@@ -162,11 +162,11 @@
     }
   ],
   "classification_thresholds": {
-    "FLOP": 1.0,
-    "AVERAGE": 2.0,
-    "HIT": 4.0,
-    "SUPER_HIT": 8.0,
-    "BLOCKBUSTER": 1000000000.0
+    "FLOP": 0.0,
+    "AVERAGE": 1.0,
+    "HIT": 2.0,
+    "SUPER_HIT": 4.0,
+    "BLOCKBUSTER": 8.0
   },
   "notes": [
     "Frequency features are identity counts (not revenue-derived), so they do not leak the target.",

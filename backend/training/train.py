@@ -9,9 +9,15 @@ Steps (documented in README):
   2. Split into train (70%) / validation (15%) / test (15%)
   3. Fit the preprocessing pipeline on the training split only
   4. Train the DNN (with EarlyStopping / ReduceLROnPlateau / ModelCheckpoint)
-  5. Train baseline models (Linear Regression, Random Forest, Gradient Boosting)
+  5. Train baseline models (Linear Regression, Random Forest, Gradient Boosting,
+     XGBoost, KNN, Decision Tree, Extra Trees, AdaBoost)
   6. Evaluate all models on the held-out test split
   7. Save model, preprocessor, metrics, feature config and metadata
+
+Optional DNN hyper-parameters (defaults come from training/hyperparameter_tuning.py):
+
+    --units 512,256,128,64 --dropouts 0.35,0.30,0.25,0.20 \
+    --batch-norm 1,1,1,1 --l2 0.0001 --learning-rate 0.001
 """
 
 from __future__ import annotations
@@ -43,7 +49,14 @@ from training.evaluate import (  # noqa: E402
     save_plots,
 )
 from training.feature_engineering import load_and_engineer  # noqa: E402
-from training.model import train_dnn  # noqa: E402
+from training.model import (  # noqa: E402
+    DEFAULT_BATCH_NORM,
+    DEFAULT_DROPOUTS,
+    DEFAULT_L2,
+    DEFAULT_UNITS,
+    describe_architecture,
+    train_dnn,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("train")
@@ -106,14 +119,46 @@ def _split(raw: pd.DataFrame, test_frac: float, seed: int):
     return raw.loc[train_idx], raw.loc[val_idx], raw.loc[test_idx]
 
 
+def _parse_csv_floats(value: str | None, default) -> tuple[float, ...]:
+    if not value:
+        return default
+    return tuple(float(v) for v in value.split(","))
+
+
+def _parse_csv_ints(value: str | None, default) -> tuple[int, ...]:
+    if not value:
+        return default
+    return tuple(int(v) for v in value.split(","))
+
+
+def _parse_csv_bools(value: str | None, default) -> tuple[bool, ...]:
+    if not value:
+        return default
+    return tuple(v.strip().lower() in ("1", "true", "yes") for v in value.split(","))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train the box-office revenue DNN.")
     parser.add_argument("--epochs", type=int, default=settings.EPOCHS)
     parser.add_argument("--batch-size", type=int, default=settings.BATCH_SIZE)
     parser.add_argument("--learning-rate", type=float, default=settings.LEARNING_RATE)
+    parser.add_argument("--units", type=str, default=None, help="Comma-separated layer sizes, e.g. 512,256,128,64")
+    parser.add_argument("--dropouts", type=str, default=None, help="Comma-separated dropout rates, e.g. 0.35,0.30,0.25,0.20")
+    parser.add_argument("--batch-norm", type=str, default=None, help="Comma-separated 1/0 per layer, e.g. 1,1,1,1")
+    parser.add_argument("--l2", type=float, default=DEFAULT_L2)
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--no-plots", action="store_true", help="Skip generating evaluation plots.")
     args = parser.parse_args()
+
+    units = _parse_csv_ints(args.units, DEFAULT_UNITS)
+    dropouts = _parse_csv_floats(args.dropouts, DEFAULT_DROPOUTS)
+    batch_norm = _parse_csv_bools(args.batch_norm, DEFAULT_BATCH_NORM)
+    if not (len(units) == len(dropouts) == len(batch_norm)):
+        parser.error("--units, --dropouts and --batch-norm must have the same number of entries.")
+    l2 = args.l2
+
+    logger.info("DNN hyper-parameters: units=%s dropouts=%s batch_norm=%s l2=%s lr=%s",
+                units, dropouts, batch_norm, l2, args.learning_rate)
 
     # 1. Dataset ------------------------------------------------------------
     df = _load_dataset()
@@ -152,17 +197,32 @@ def main() -> None:
         seed=args.seed,
         model_path=model_path,
         verbose=1,
+        units=units,
+        dropouts=dropouts,
+        batch_norm=batch_norm,
+        l2=l2,
     )
 
     # 5. Baselines ------------------------------------------------------------
     logger.info("Training baseline models...")
-    from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+    from sklearn.ensemble import (
+        AdaBoostRegressor,
+        ExtraTreesRegressor,
+        GradientBoostingRegressor,
+        RandomForestRegressor,
+    )
     from sklearn.linear_model import LinearRegression
+    from sklearn.neighbors import KNeighborsRegressor
+    from sklearn.tree import DecisionTreeRegressor
 
     baselines = {
         "Linear Regression": LinearRegression(),
         "Random Forest": RandomForestRegressor(n_estimators=250, max_depth=18, n_jobs=-1, random_state=args.seed),
         "Gradient Boosting": GradientBoostingRegressor(n_estimators=300, max_depth=4, learning_rate=0.06, random_state=args.seed),
+        "K-Nearest Neighbors": KNeighborsRegressor(n_neighbors=12, weights="distance", n_jobs=-1),
+        "Decision Tree": DecisionTreeRegressor(max_depth=14, random_state=args.seed),
+        "Extra Trees": ExtraTreesRegressor(n_estimators=250, max_depth=20, n_jobs=-1, random_state=args.seed),
+        "AdaBoost": AdaBoostRegressor(n_estimators=150, learning_rate=0.05, random_state=args.seed),
     }
     try:
         from xgboost import XGBRegressor
@@ -268,17 +328,21 @@ def main() -> None:
         "comparison": comparison,
         "feature_importance": importance,
         "architecture": {
-            "layers": [
-                "Input",
-                "Dense(256, relu) + BatchNorm + Dropout(0.30)",
-                "Dense(128, relu) + BatchNorm + Dropout(0.25)",
-                "Dense(64, relu) + Dropout(0.20)",
-                "Dense(32, relu)",
-                "Dense(1, linear)",
-            ],
-            "optimizer": "Adam (lr 1e-3, ReduceLROnPlateau on plateau)",
+            "layers": describe_architecture(units=units, dropouts=dropouts, batch_norm=batch_norm, l2=l2),
+            "optimizer": "Adam (lr {lr}, ReduceLROnPlateau on plateau)".format(lr=args.learning_rate),
             "loss": "Huber (delta=1.0)",
             "metric": "MAE",
+            "l2": l2,
+        },
+        "hyperparameter_tuning": {
+            "note": "Results in models/evaluation/tuning_results.{csv,json,png}",
+            "best_config": {
+                "units": list(units),
+                "dropouts": list(dropouts),
+                "batch_norm": list(batch_norm),
+                "learning_rate": args.learning_rate,
+                "l2": l2,
+            },
         },
     }
     Path(settings.METRICS_PATH).write_text(json.dumps(metrics, indent=2), encoding="utf-8")
