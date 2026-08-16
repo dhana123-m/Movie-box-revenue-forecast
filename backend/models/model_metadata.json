@@ -2,7 +2,7 @@
   "model_version": "1.0.0",
   "model_name": "revenue_dnn",
   "model_type": "Deep Neural Network (Multi-Layer Perceptron)",
-  "training_date": "2026-08-16T13:48:44.081264",
+  "training_date": "2026-08-16T18:14:45.544599",
   "dataset_size": 3165,
   "feature_count": 34,
   "tensorflow_version": "2.21.0",
