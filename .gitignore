@@ -1,0 +1,32 @@
+# --- Python ---
+backend/.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+backend/tests/.pytest_cache/
+
+# --- Environments ---
+.env
+backend/.env
+frontend/.env.local
+
+# --- Node ---
+frontend/node_modules/
+frontend/dist/
+
+# --- Generated artifacts (rebuilt by training/seed scripts) ---
+backend/movie_box.db
+backend/models/*.keras
+backend/models/*.pkl
+backend/models/*.joblib
+backend/models/evaluation/
+
+# --- Data (raw downloads are large; processed CSV stays tracked) ---
+backend/data/raw/*.csv
+
+# --- Logs / misc ---
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

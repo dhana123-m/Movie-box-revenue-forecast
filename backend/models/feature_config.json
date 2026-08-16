@@ -1,0 +1,175 @@
+{
+  "description": "Features available to the DNN. All are knowable before/around release.",
+  "target": "revenue",
+  "target_transformation": "log1p",
+  "target_inverse": "expm1",
+  "numeric_features": [
+    "budget_log",
+    "budget_per_runtime",
+    "runtime",
+    "popularity",
+    "vote_average",
+    "vote_count_log",
+    "release_year",
+    "release_month",
+    "release_quarter",
+    "release_weekday",
+    "genre_count",
+    "cast_size",
+    "cast_star_power",
+    "director_frequency",
+    "company_frequency",
+    "language_is_en",
+    "Drama",
+    "Comedy",
+    "Thriller",
+    "Action",
+    "Adventure",
+    "Romance",
+    "Crime",
+    "Science Fiction",
+    "Family",
+    "Horror",
+    "Fantasy",
+    "Mystery",
+    "Animation",
+    "History",
+    "War",
+    "Music",
+    "Western",
+    "Documentary"
+  ],
+  "genre_features": [
+    "Drama",
+    "Comedy",
+    "Thriller",
+    "Action",
+    "Adventure",
+    "Romance",
+    "Crime",
+    "Science Fiction",
+    "Family",
+    "Horror",
+    "Fantasy",
+    "Mystery",
+    "Animation",
+    "History",
+    "War",
+    "Music",
+    "Western",
+    "Documentary"
+  ],
+  "feature_columns": [
+    "budget_log",
+    "budget_per_runtime",
+    "runtime",
+    "popularity",
+    "vote_average",
+    "vote_count_log",
+    "release_year",
+    "release_month",
+    "release_quarter",
+    "release_weekday",
+    "genre_count",
+    "cast_size",
+    "cast_star_power",
+    "director_frequency",
+    "company_frequency",
+    "language_is_en",
+    "Drama",
+    "Comedy",
+    "Thriller",
+    "Action",
+    "Adventure",
+    "Romance",
+    "Crime",
+    "Science Fiction",
+    "Family",
+    "Horror",
+    "Fantasy",
+    "Mystery",
+    "Animation",
+    "History",
+    "War",
+    "Music",
+    "Western",
+    "Documentary"
+  ],
+  "engineered_features": [
+    {
+      "name": "budget_log",
+      "description": "log1p(production budget USD)"
+    },
+    {
+      "name": "budget_per_runtime",
+      "description": "budget / runtime (spend intensity)"
+    },
+    {
+      "name": "runtime",
+      "description": "runtime in minutes"
+    },
+    {
+      "name": "popularity",
+      "description": "TMDB popularity score"
+    },
+    {
+      "name": "vote_average",
+      "description": "expected IMDb/TMDB rating 0-10"
+    },
+    {
+      "name": "vote_count_log",
+      "description": "log1p(expected vote count)"
+    },
+    {
+      "name": "release_year",
+      "description": "release year"
+    },
+    {
+      "name": "release_month",
+      "description": "release month 1-12"
+    },
+    {
+      "name": "release_quarter",
+      "description": "release quarter 1-4"
+    },
+    {
+      "name": "release_weekday",
+      "description": "release day of week 0-6"
+    },
+    {
+      "name": "genre_count",
+      "description": "number of genres"
+    },
+    {
+      "name": "cast_size",
+      "description": "number of lead actors"
+    },
+    {
+      "name": "cast_star_power",
+      "description": "max appearance frequency of lead actors in training set"
+    },
+    {
+      "name": "director_frequency",
+      "description": "how many movies the director has in the training set"
+    },
+    {
+      "name": "company_frequency",
+      "description": "how many movies the production company has in the training set"
+    },
+    {
+      "name": "language_is_en",
+      "description": "1 if original language is English"
+    }
+  ],
+  "classification_thresholds": {
+    "FLOP": 1.0,
+    "AVERAGE": 2.0,
+    "HIT": 4.0,
+    "SUPER_HIT": 8.0,
+    "BLOCKBUSTER": 1000000000.0
+  },
+  "notes": [
+    "Frequency features are identity counts (not revenue-derived), so they do not leak the target.",
+    "Unknown directors/companies/actors map to frequency 0 at prediction time."
+  ]
+}
