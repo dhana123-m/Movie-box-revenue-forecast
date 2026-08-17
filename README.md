@@ -1,110 +1,131 @@
 # 🎬 Movie Box Office Revenue Forecast
 
-A full-stack college mini-project that predicts **worldwide box office revenue** for a movie using a **Deep Neural Network (TensorFlow / Keras)** trained on the real **TMDB 5000** dataset.
+A full-stack web application that predicts **worldwide box-office revenue** for any movie using a **Deep Neural Network** (TensorFlow/Keras) trained on the **TMDB 5000** dataset — built as a college mini-project.
 
-- **Frontend** — React 18 + TypeScript + Vite + Tailwind CSS + Recharts (dark cinematic UI)
-- **Backend** — FastAPI + SQLAlchemy + SQLite, REST API with error envelopes
-- **ML Pipeline** — feature engineering, DNN training, baseline comparison, evaluation artifacts
-- **Extras** — single & batch (JSON/CSV) prediction, sensitivity explainability, retraining endpoint, analytics, movie explorer
+| Layer | Technology |
+|---|---|
+| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, Recharts |
+| **Backend** | FastAPI, SQLAlchemy, SQLite, Pydantic v2 |
+| **ML Pipeline** | TensorFlow / Keras DNN, Scikit-learn, XGBoost, feature engineering |
+| **Deployment** | Render (two-service blueprint: API + static site) |
+
+---
+
+## 🔗 Live Demo
+
+| Service | URL |
+|---|---|
+| Frontend (React) | https://movie-box-office-frontend.onrender.com |
+| Backend API (FastAPI) | https://movie-box-office-backend.onrender.com |
+
+> The Render free tier sleeps after ~15 min idle. The first request after idle takes ~30–60 s to wake the service.
 
 ---
 
 ## ✨ Features
 
-| Area | Description |
+| Page / Area | Description |
 |---|---|
-| 🎯 **Revenue Forecast** | Form-driven prediction: budget, runtime, genres, release window, audience signals, cast & crew |
-| 🔍 **Explainability** | Per-feature sensitivity analysis — *why* the model predicted this number |
+| 🎯 **Forecast** | Form-driven single prediction — budget, runtime, genres, release window, cast & crew, audience signals |
 | 📦 **Batch Prediction** | Predict many movies at once via JSON array or CSV upload |
+| 🔍 **Explainability** | Per-feature sensitivity analysis — *why* the model predicted this number |
 | 📈 **Analytics** | Revenue by year, genre, release month, budget-vs-revenue scatter, top grossers |
 | 🎞️ **Movie Explorer** | Search / filter / sort / paginate the 3,164-movie database |
-| 🧠 **Model Hub** | Test metrics vs. baselines, training curves, dataset split, thresholds |
-| ♻️ **Retraining** | One-click retrain from the UI (development only) |
+| 🧠 **Model Hub** | DNN vs baseline metrics, training curves, feature importance, dataset split info |
+| ⚙️ **Settings** | System config, API base URL, feature list, retrain trigger (dev only) |
+| ♻️ **Retraining** | One-click retrain from the UI (`ALLOW_RETRAIN=false` in production) |
 
 ---
 
 ## 🧠 The Model
 
-- **Task**: regression on `log1p(revenue)` (revenue is highly skewed).
-- **Architecture**: `512 → 256 → 128 → 64` ReLU dense layers, each with **BatchNorm** and **Dropout (0.35/0.30/0.25/0.20)**, **L2 (1e-4)** regularization and a final linear output.
-- **Loss**: Huber (delta = 1.0) · **Optimizer**: Adam (lr 1e-3, ReduceLROnPlateau) · **Early stopping**: patience 25 on val loss.
-- **Features (34)**: 16 engineered numerics (budget, runtime, popularity, rating, vote count, release timing, cast star power, director/studio track record, …) + **18 genre multi-hot** flags.
-- **Dataset**: 3,165 cleaned movies from TMDB 5000 (budget>0, revenue>0, runtime 30–400, status=Released).
-- **Data split**: 70 / 15 / 15 (stratified by revenue quartile).
-- The deployed hyper-parameters were selected by a bounded **grid search** (11 trials, validation MAE). See [ML experiments](#-ml-experiments).
+### Task
 
-### Test performance (held-out)
+Regression on **`log1p(revenue)`** — revenue spans five orders of magnitude so the log transform makes the target near-Gaussian and stabilises the regression.
 
-| Model | R² (log) | RMSE (log) |
-|---|---|---|
-| **Deep Neural Network** | **0.685** | 1.159 |
-| Linear Regression | 0.690 | 1.150 |
-| Random Forest | 0.651 | 1.221 |
-| Extra Trees | 0.636 | 1.246 |
-| XGBoost | 0.632 | 1.254 |
-| Gradient Boosting | 0.632 | 1.254 |
-| AdaBoost | 0.520 | 1.432 |
-| K-Nearest Neighbors | 0.490 | 1.475 |
-| Decision Tree | 0.228 | 1.815 |
+### Architecture
 
-The DNN is the best *non-linear* model on log-space RMSE/MAE and essentially ties Linear Regression on R² while being far more robust in the original revenue space (MAE **$55.4M** vs. the linear model's $53.8M — the DNN does not overshoot blockbusters the way trees and the linear model do).
+```
+Input (34 features)
+  → Dense(512, ReLU) + BatchNorm + Dropout(0.35)
+  → Dense(256, ReLU) + BatchNorm + Dropout(0.30)
+  → Dense(128, ReLU) + BatchNorm + Dropout(0.25)
+  → Dense(64,  ReLU) + BatchNorm + Dropout(0.20)
+  → Dense(1,  linear)                         ← log1p(revenue)
+```
+
+| Hyper-parameter | Value |
+|---|---|
+| Optimizer | Adam (lr 1e-3) |
+| LR schedule | ReduceLROnPlateau (patience 8, factor 0.5, min 1e-5) |
+| Loss | Huber (delta = 1.0) |
+| Metric | MAE |
+| Regularisation | L2 1e-4 + Dropout (per layer) |
+| Early stopping | Patience 25 on val loss |
+| Epochs | Up to 300 (early stopped at ~84–109 in practice) |
+| Batch size | 128 |
+
+### Features (34)
+
+**16 engineered numerics**
+
+| Feature | Description |
+|---|---|
+| `budget_log` | `log1p(budget)` |
+| `budget_per_runtime` | `budget / runtime` (spend intensity) |
+| `runtime` | Runtime in minutes |
+| `popularity` | TMDB popularity score |
+| `vote_average` | Average user rating |
+| `vote_count_log` | `log1p(vote_count)` (audience reach) |
+| `release_year` | Calendar year |
+| `release_month` | 1–12 |
+| `release_quarter` | 1–4 |
+| `release_weekday` | 0=Mon … 6=Sun |
+| `genre_count` | Number of genres attached |
+| `cast_size` | Number of lead actors |
+| `cast_star_power` | Average rating of lead actors |
+| `director_frequency` | How many films the director has in the dataset |
+| `company_frequency` | How many films the production company has |
+| `language_is_en` | 1 if English, else 0 |
+
+**18 genre one-hot flags** — Drama, Comedy, Thriller, Action, Adventure, Romance, Crime, Science Fiction, Family, Horror, Fantasy, Mystery, Animation, History, War, Music, Western, Documentar
+
+### Dataset
+
+- **Source**: TMDB 5000 Movies + Credits
+- **Cleaned rows**: 3,165 (budget > 0, revenue > 0, runtime 30–400 min, status = Released)
+- **Split**: 70 / 15 / 15 (stratified by revenue quartile)
+- **Preprocessing**: StandardScaler on numerics, one-hot on genres; `company_frequency`, `director_frequency`, `cast_star_power` are **fit on train only** then merged (no leakage)
+
+### Test performance (held-out 476 movies)
+
+| Model | R² (log) | RMSE (log) | MAE (revenue) |
+|---|---|---|---|
+| **Deep Neural Network** | **0.685** | 1.159 | $55.4 M |
+| Linear Regression | 0.690 | 1.150 | $53.8 M |
+| Random Forest | 0.651 | 1.221 | $51.3 M |
+| Extra Trees | 0.636 | 1.246 | $51.5 M |
+| XGBoost | 0.632 | 1.254 | $50.0 M |
+| Gradient Boosting | 0.632 | 1.254 | $50.6 M |
+| AdaBoost | 0.520 | 1.432 | $68.8 M |
+| K-Nearest Neighbors | 0.490 | 1.475 | $66.3 M |
+| Decision Tree | 0.228 | 1.815 | $76.2 M |
+
+The DNN is the best **non-linear** model on log-space RMSE/MAE. It ties Linear Regression on R² while being more robust in the original revenue space — it does not overshoot blockbusters the way trees and the linear model do.
 
 ### Performance labels
 
-Predicted revenue is classified against the budget via a multiplier:
+Predicted revenue is classified against budget via a multiplier:
 
 | Label | Revenue / Budget |
 |---|---|
-| `FLOP` | < 1.0x |
-| `AVERAGE` | 1.0x – 2.0x |
-| `HIT` | 2.0x – 4.0x |
-| `SUPER_HIT` | 4.0x – 8.0x |
-| `BLOCKBUSTER` | ≥ 8.0x |
+| `FLOP` | < 1.0× |
+| `AVERAGE` | 1.0× – 2.0× |
+| `HIT` | 2.0× – 4.0× |
+| `SUPER_HIT` | 4.0× – 8.0× |
+| `BLOCKBUSTER` | ≥ 8.0× |
 
-> ⚠️ **Disclaimer**: Predictions are statistical estimates. Confidence reflects training accuracy + input completeness, not a probability of success. Use the 95% range, not the point estimate.
-
----
-
-## 🔬 ML Experiments
-
-Artifacts are generated under `backend/models/evaluation/` (CSV/JSON/PNG).
-
-### Hyper-parameter tuning
-
-`backend/training/hyperparameter_tuning.py` sweeps **11 configurations** over layer width/depth, dropout strength, L2 and learning rate, scoring each by validation MAE.
-
-```bat
-cd backend
-.venv\Scripts\python training\hyperparameter_tuning.py
-```
-
-Top results (validation MAE, log-revenue, lower is better):
-
-| Config | Dropout | lr | L2 | Val MAE |
-|---|---|---|---|---|
-| **512→256→128→64** ✅ | 0.35/0.30/0.25/0.20 | 1e-3 | 1e-4 | **0.7209** |
-| 256→192→128→64→32 | 0.30/0.25/0.20/0.15/0.15 | 1e-3 | 1e-4 | 0.7319 |
-| 256→128→64→32 | 0.30/0.25/0.20/0.20 | 3e-3 | 1e-4 | 0.7457 |
-| 256→128→64→32 (baseline) | 0.30/0.25/0.20/0.20 | 1e-3 | 1e-4 | 0.7702 |
-
-The winning configuration became the production default (`train.py`), lifting test R²(log) from **0.653 → 0.685** and cutting test MAE from **$66.2M → $55.4M**.
-
-### Feature importance
-
-Permutation importance on the held-out test set (drop in MAE when each feature is shuffled). Top inputs:
-
-1. `vote_count_log` (audience reach)
-2. `budget_log`
-3. `budget_per_runtime` (spend intensity)
-4. `popularity`
-5. `release_year` + release-season features
-6. Genre flags (`Family`, `Science Fiction`, `Romance`, `Documentary`…)
-
-Visualised live on the **Model Performance** page.
-
-### Baselines
-
-Eight classical regressors compete with the DNN on the same split & feature matrix: Linear Regression, Random Forest, Gradient Boosting, XGBoost, Extra Trees, AdaBoost, K-Nearest Neighbors and Decision Tree.
+> **Disclaimer**: Predictions are statistical estimates. Confidence reflects training accuracy + input completeness, not a probability of success. Use the 95% range, not the point estimate.
 
 ---
 
@@ -112,30 +133,37 @@ Eight classical regressors compete with the DNN on the same split & feature matr
 
 ### Prerequisites
 
-- Python **3.12** (required for TensorFlow wheels on Windows)
-- Node.js ≥ 18
-- Git
+| Requirement | Version |
+|---|---|
+| Python | **3.12** (required for TensorFlow 2.19+ wheels on Windows) |
+| Node.js | ≥ 18 |
+| Git | any recent version |
 
-### 1. Backend
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/dhana123-m/Movie-box-revenue-forecast.git
+cd Movie-box-revenue-forecast
+```
+
+### 2. Backend (FastAPI + TensorFlow)
 
 ```bat
-:: from the repo root
 cd backend
 py -3.12 -m venv .venv
+.venv\Scripts\pip install --upgrade pip
 .venv\Scripts\pip install -r requirements.txt
-.venv\Scripts\python scripts\download_data.py   :: optional: re-download TMDB CSVs
-.venv\Scripts\python training\train.py          :: optional: (re)train + evaluate
-.venv\Scripts\python -m uvicorn app.main:app --port 8000
+.venv\Scripts\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
 Or simply run `run_backend.bat` (uses a pre-existing `.venv`).
 
-- API docs (Swagger): http://localhost:8000/docs
-- Health check: http://localhost:8000/api/health
+- **Swagger UI**: http://localhost:8000/docs
+- **Health check**: http://localhost:8000/api/health
 
-On startup the API **auto-seeds the SQLite database** (`backend/movie_box.db`) from `data/processed/tmdb_5000_processed.csv` if empty, and loads the trained model.
+> On first start the API auto-seeds the SQLite database from the committed processed CSV (`backend/data/processed/tmdb_5000_processed.csv`) and loads the trained model.
 
-### 2. Frontend
+### 3. Frontend (React + Vite)
 
 ```bat
 cd frontend
@@ -143,62 +171,71 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 — the Vite proxy forwards `/api` to the backend on port 8000.
+Open http://localhost:5173 — the Vite dev proxy forwards all `/api` requests to the backend on port 8000.
 
-### 3. Ready-made scripts
+### 4. Quick-start scripts
 
 | Script | What it does |
 |---|---|
-| `run_backend.bat` | Starts the FastAPI backend |
-| `run_frontend.bat` | Starts the Vite dev server |
+| `run_backend.bat` | Starts the FastAPI backend on port 8000 |
+| `run_frontend.bat` | Starts the Vite dev server on port 5173 |
 
-### 4. Single-port production mode (optional)
+### 5. Retraining the model (optional)
 
-After `npm run build` the backend also serves the built frontend on the same
-port, so the entire app lives on **one origin** — no CORS, no proxy:
+```bat
+cd backend
+.venv\Scripts\python training\train.py          :: full pipeline: feature eng → train → evaluate
+.venv\Scripts\python training\hyperparameter_tuning.py  :: 11-trial grid search
+```
+
+Or click **Retrain** in the Settings page (requires `ALLOW_RETRAIN=true`, which is the default in development).
+
+---
+
+## 🖥️ Single-Port Production Mode
+
+After building the frontend the FastAPI server also serves it on the **same port** — one origin, no CORS, no proxy:
 
 ```bat
 cd frontend && npm run build
 cd ..\backend
-.venv\Scripts\python -m uvicorn app.main:app --port 8000
+.venv\Scripts\python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 :: open http://localhost:8000
 ```
 
-FastAPI mounts `/assets` statically, returns `index.html` for any non-`/api`
-route (SPA routing) and keeps every `/api/*` endpoint on the error envelope.
+FastAPI mounts `/assets` statically, returns `index.html` for any non-`/api` route (SPA fallback), and wraps every `/api/*` error in the standard envelope.
+
 Disable by setting `FRONTEND_DIST_PATH` to a non-existent folder in `backend/.env`.
 
-### 5. Cloud deployment (Render, free)
+---
 
-The repo ships a [Render](https://render.com) blueprint (`render.yaml`) that
-deploys **two separate services**:
+## ☁️ Cloud Deployment (Render, free)
 
-1. `movie-box-office-backend` — FastAPI + TensorFlow web service.
-2. `movie-box-office-frontend` — React static site that talks to the backend
-   through `VITE_API_BASE_URL` (built into the bundle at build time).
+The repo ships a [Render Blueprint](https://render.com/docs/blueprint-spec) (`render.yaml`) that deploys **two separate services**:
 
-Deploy:
+| Service | Type | Description |
+|---|---|---|
+| `movie-box-office-backend` | Web (Python) | FastAPI + TensorFlow API |
+| `movie-box-office-frontend` | Static Site | React SPA that calls the API |
 
-1. Push this repository to GitHub (`git remote add origin <url>` + `git push`).
+### Deploy steps
+
+1. Push the repository to GitHub.
 2. On Render: **Dashboard → New → Blueprint**, select the repo.
-3. Render creates both services and wires them together. Open the frontend URL
-   (the backend URL is auto-configured as its API base).
+3. Render creates both services and wires them via `VITE_API_BASE_URL` / `CORS_ORIGINS`.
+4. Open the frontend URL — the backend URL is the API base.
 
-Deployment facts:
+### Deployment facts
 
-- **No re-training on the server** — the trained model, preprocessor and
-  training history are committed to git and loaded on boot.
-- **No dataset downloads** — the processed CSV is committed; SQLite seeds from
-  it automatically on first start.
-- **CORS** — the backend allows the frontend origin via `CORS_ORIGINS`;
-  dev origins (`localhost:5173`) are always allowed by the default.
-- **SPA routing** — the static site ships `_redirects` (`/* -> /index.html`)
-  so client-side routes like `/forecast` work on direct URLs.
-- **SQLite is ephemeral** — data resets on redeploy (fine for a demo; the API
-  reseeds automatically).
-- **Retraining is disabled in production** (`ALLOW_RETRAIN=false`).
-- Free-tier builds have 512 MB RAM; TensorFlow installs fine but if the build
-  ever OOMs, bump the service to the paid `Starter` plan and redeploy.
+| Topic | Detail |
+|---|---|
+| **Model artifacts** | Committed to git; loaded on boot. No re-training on the server. |
+| **Database** | SQLite on Render's ephemeral disk; auto-seeds from committed CSV. Resets on redeploy. |
+| **CORS** | Backend allows the frontend origin via `CORS_ORIGINS`. Dev origins (`localhost:5173`) are always allowed. |
+| **SPA routing** | Static site ships `frontend/public/_redirects` (`/* → /index.html`, LF-only enforced by `.gitattributes`). |
+| **Retraining** | Disabled in production (`ALLOW_RETRAIN=false`). |
+| **Build** | Free-tier has 512 MB RAM. TensorFlow installs fine; if it ever OOMs, bump to the paid `Starter` plan. |
+| **Cold start** | Free-tier sleeps after ~15 min idle. First request takes ~30–60 s to wake. |
 
 ---
 
@@ -206,76 +243,155 @@ Deployment facts:
 
 ```
 Movie-box-revenue-forecast/
+│
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                 # FastAPI app, lifespan, CORS, routers
-│   │   ├── config.py               # env-driven settings
-│   │   ├── database.py             # SQLAlchemy engine/session
-│   │   ├── models/                 # ORM models (Movie, Prediction, ModelMetadata)
-│   │   ├── schemas/                # Pydantic request/response contracts
+│   │   ├── main.py                  # FastAPI app: lifespan, CORS, routers, SPA mount
+│   │   ├── config.py                # env-driven settings (pydantic-settings)
+│   │   ├── database.py              # SQLAlchemy engine / session
+│   │   ├── models/                  # ORM models (Movie, Prediction, ModelMetadata)
+│   │   ├── schemas/                 # Pydantic request/response contracts
+│   │   │   ├── predict.py           # PredictRequest, BatchPredictItem, PredictResponse
+│   │   │   ├── movie.py             # MovieSummary, MovieDetail, MovieListResponse
+│   │   │   └── analytics.py         # OverviewStats, GenreStat, YearlyStat …
 │   │   ├── ml/
-│   │   │   ├── preprocessor.py     # shared feature pipeline (fit/transform/inverse)
-│   │   │   ├── genres.py           # canonical genre vocabulary
-│   │   │   ├── performance.py      # FLOP..BLOCKBUSTER classifier
-│   │   │   └── explain.py          # perturbation-based sensitivity explainer
-│   │   ├── services/               # model, prediction, analytics, db, training
-│   │   ├── routes/                 # health, predict, analytics, movies, training
-│   │   └── utils/                  # error envelope, formatting helpers
+│   │   │   ├── preprocessor.py      # RevenuePreprocessor (fit/transform/inverse)
+│   │   │   ├── genres.py            # canonical genre vocabulary
+│   │   │   ├── performance.py       # FLOP … BLOCKBUSTER classifier
+│   │   │   └── explain.py           # perturbation-based sensitivity explainer
+│   │   ├── services/
+│   │   │   ├── model_service.py     # singleton: loads Keras model + preprocessor
+│   │   │   ├── prediction_service.py # single / batch / CSV prediction logic
+│   │   │   ├── analytics_service.py # overview, genres, yearly, scatter, top-movies
+│   │   │   ├── db_service.py        # seed_from_csv, CRUD helpers
+│   │   │   └── training_service.py  # retrain trigger + status
+│   │   ├── routes/
+│   │   │   ├── health.py            # GET /api/health
+│   │   │   ├── predict.py           # POST /api/predict, /batch, /csv
+│   │   │   ├── analytics.py         # GET /api/analytics/*
+│   │   │   ├── movies.py            # GET /api/movies, /movies/{id}, /filters/summary
+│   │   │   ├── model_info.py        # GET /api/model/info
+│   │   │   └── training.py          # GET/POST /api/training/*
+│   │   └── utils/                   # error-envelope helpers, formatters
+│   │
 │   ├── training/
-│   │   ├── feature_engineering.py  # raw CSV -> processed dataset
-│   │   ├── model.py                # build_dnn / train_dnn (configurable)
-│   │   ├── hyperparameter_tuning.py # DNN hyper-parameter grid search
-│   │   ├── evaluate.py             # baselines + evaluation plots
-│   │   └── train.py                # full pipeline entrypoint
-│   ├── scripts/download_data.py    # downloads TMDB 5000 CSVs
-│   ├── data/raw/                   # downloaded CSVs
-│   ├── data/processed/             # cleaned dataset (3,165 movies)
-│   ├── models/                     # model.keras, preprocessor.pkl, metrics.json, evaluation/
-│   └── tests/                      # pytest suite
+│   │   ├── feature_engineering.py   # raw CSV → cleaned/featured CSV
+│   │   ├── model.py                 # build_dnn(), describe_architecture()
+│   │   ├── train.py                 # full pipeline: feature eng → train → evaluate
+│   │   ├── hyperparameter_tuning.py # 11-trial DNN grid search
+│   │   └── evaluate.py              # baseline models + evaluation plots
+│   │
+│   ├── scripts/download_data.py     # downloads TMDB 5000 CSVs
+│   ├── tests/                       # pytest suite (16 tests, isolated DB)
+│   │   ├── conftest.py              # test fixtures: temp DB, TestClient
+│   │   ├── test_ml.py               # model loading, predict, explain, thresholds
+│   │   └── test_api.py              # endpoint integration tests
+│   │
+│   ├── data/
+│   │   ├── raw/                     # tmdb_5000_movies.csv, credits.csv
+│   │   └── processed/               # tmdb_5000_processed.csv (committed)
+│   │
+│   ├── models/                      # trained artifacts (committed to git)
+│   │   ├── revenue_model.keras      # Keras DNN (~2.4 MB)
+│   │   ├── preprocessor.pkl         # fitted RevenuePreprocessor
+│   │   ├── metrics.json             # test metrics (DNN + baselines)
+│   │   ├── model_metadata.json      # training date, TF version, config
+│   │   ├── feature_config.json      # feature names + numeric columns
+│   │   └── evaluation/              # training_history.json, plots, tuning results
+│   │
+│   ├── requirements.txt
+│   ├── .env.example
+│   └── movie_box.db                 # SQLite (auto-created, not committed)
+│
 ├── frontend/
-│   └── src/
-│       ├── services/api.ts         # typed API client
-│       ├── hooks/useApi.ts         # data-fetching hook
-│       ├── components/             # layout, charts, ui, forecast
-│       ├── pages/                  # Dashboard, Forecast, Analytics, Explorer, Model, Settings
-│       └── utils/format.ts         # currency/formatting helpers
-├── notebooks/exploratory_analysis.ipynb
-├── run_backend.bat
-├── run_frontend.bat
+│   ├── public/
+│   │   └── _redirects               # SPA fallback (/* → /index.html, LF-only)
+│   ├── src/
+│   │   ├── services/api.ts          # typed API client (reads VITE_API_BASE_URL)
+│   │   ├── hooks/useApi.ts          # data-fetching hook
+│   │   ├── types/index.ts           # TypeScript interfaces
+│   │   ├── components/
+│   │   │   ├── layout/Layout.tsx    # sidebar, topbar, health badge
+│   │   │   ├── charts/             # reusable Recharts wrappers
+│   │   │   ├── forecast/           # PredictionForm + PredictionResultCard
+│   │   │   └── ui/                 # Button, Card, Input, Badge, etc.
+│   │   ├── pages/
+│   │   │   ├── DashboardPage.tsx
+│   │   │   ├── ForecastPage.tsx
+│   │   │   ├── AnalyticsPage.tsx
+│   │   │   ├── MovieExplorerPage.tsx
+│   │   │   ├── ModelPerformancePage.tsx
+│   │   │   └── SettingsPage.tsx
+│   │   └── utils/format.ts         # currency / number formatters
+│   ├── index.html
+│   ├── vite.config.ts
+│   ├── tailwind.config.js
+│   ├── package.json
+│   └── .env.example
+│
+├── notebooks/
+│   └── exploratory_analysis.ipynb   # Jupyter notebook: data exploration + visualisations
+│
+├── demo_movies.csv                  # 10 sample movies for CSV-batch testing
+├── render.yaml                      # Render blueprint (backend + frontend)
+├── .gitattributes                   # LF enforcement for _redirects
+├── .gitignore
+├── run_backend.bat                  # quick-start backend
+├── run_frontend.bat                 # quick-start frontend
 └── README.md
 ```
 
 ---
 
-## 🔌 API Overview
+## 🔌 API Reference
 
 All responses use a consistent envelope:
 
 ```json
-{ "success": true, "data": { ... }, "message": null, "error": null }
+{
+  "success": true,
+  "data": { ... },
+  "message": null,
+  "error": null
+}
 ```
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/api/health` | Liveness + model & DB status |
-| GET | `/api/model/info` | Model metadata, thresholds, dataset info |
-| POST | `/api/predict` | Single prediction |
-| POST | `/api/predict/batch` | Batch prediction from a JSON array |
-| POST | `/api/predict/csv` | Batch prediction from an uploaded CSV |
-| GET | `/api/analytics/overview` | Global stats |
-| GET | `/api/analytics/genres` | Genre-level revenue stats |
-| GET | `/api/analytics/yearly` | Per-year revenue (`?min_year=2000`) |
-| GET | `/api/analytics/budget-vs-revenue` | Scatter data |
-| GET | `/api/analytics/top-movies` | Highest grossing movies |
-| GET | `/api/analytics/release-months` | Monthly release performance |
-| GET | `/api/movies` | Explorer list (`q`, `genre`, `min_year`, `max_year`, `sort_by`, `page`…) |
-| GET | `/api/movies/{id}` | Movie detail |
-| GET | `/api/movies/filters/summary` | Dropdown options (genres, years, languages, companies, directors) |
-| GET | `/api/training/metrics` | DNN + baseline metrics & training history |
-| GET | `/api/training/status` | Retraining job status |
-| POST | `/api/retrain` | Trigger retraining (dev only) |
+Errors:
 
-### Single prediction request
+```json
+{
+  "success": false,
+  "data": null,
+  "message": "Something went wrong.",
+  "error": { "code": "VALIDATION_ERROR", "message": "...", "fields": { "budget": "..." } }
+}
+```
+
+### Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/health` | Liveness probe, model + DB status |
+| `GET` | `/api/model/info` | Model metadata, thresholds, feature list, dataset info |
+| `POST` | `/api/predict` | Single-movie prediction |
+| `POST` | `/api/predict/batch` | Batch prediction from a JSON array |
+| `POST` | `/api/predict/csv` | Batch prediction from an uploaded CSV file |
+| `GET` | `/api/analytics/overview` | Global stats (total movies, avg budget/revenue, top genres) |
+| `GET` | `/api/analytics/genres` | Per-genre revenue statistics |
+| `GET` | `/api/analytics/yearly` | Per-year revenue (`?min_year=2000`) |
+| `GET` | `/api/analytics/budget-vs-revenue` | Scatter data (`?limit=200`) |
+| `GET` | `/api/analytics/top-movies` | Highest grossing films (`?limit=10`) |
+| `GET` | `/api/analytics/release-months` | Monthly release performance |
+| `GET` | `/api/analytics/genres-by-year` | Genre × year breakdown |
+| `GET` | `/api/movies` | Explorer list (pagination + filters) |
+| `GET` | `/api/movies/{id}` | Single movie detail |
+| `GET` | `/api/movies/filters/summary` | Dropdown options for the explorer |
+| `GET` | `/api/training/metrics` | DNN + all baseline metrics, training history, feature importance |
+| `GET` | `/api/training/status` | Background retraining job status |
+| `POST` | `/api/retrain` | Trigger retraining (dev only) |
+| `GET` | `/docs` | Swagger UI (auto-generated) |
+
+### Single prediction — request
 
 ```json
 {
@@ -296,41 +412,172 @@ All responses use a consistent envelope:
 }
 ```
 
+### Single prediction — response (abbreviated)
+
+```json
+{
+  "success": true,
+  "data": {
+    "title": "Avatar 3",
+    "predicted_revenue": 598234000,
+    "predicted_revenue_inr": "₹4,965 Cr",
+    "performance_category": "SUPER_HIT",
+    "budget": 250000000,
+    "revenue_budget_ratio": 2.39,
+    "confidence_score": 82.7,
+    "expected_range": { "low": 120000000, "high": 2400000000 },
+    "model": "Deep Neural Network",
+    "model_version": "1.0.0",
+    "contributions": [
+      { "feature": "vote_count_log", "contribution": 3.2, "direction": "positive" },
+      { "feature": "budget_log", "contribution": 2.1, "direction": "positive" }
+    ],
+    "disclaimer": "Predictions are estimates based on historical patterns …"
+  }
+}
+```
+
+### Batch prediction — request
+
+Send a plain JSON array (no wrapper):
+
+```json
+[
+  { "title": "Movie A", "budget": 150000000, "runtime": 140, "genres": ["Action"], ... },
+  { "title": "Movie B", "budget": 20000000, "runtime": 100, "genres": ["Drama"], ... }
+]
+```
+
 ### CSV format
 
-Required columns: `title, budget, runtime`; optional: `genres` (pipe-separated `Action|Adventure`), `release_month`, `release_day`, `release_year`, `production_company`, `director`, `lead_actors` (pipe-separated), `rating`, `vote_count`, `popularity`, `language`. See `demo_movies.csv`.
+| Column | Required | Notes |
+|---|---|---|
+| `title` | ✅ | |
+| `budget` | ✅ | Positive number |
+| `runtime` | ✅ | Minutes |
+| `genres` | | Pipe-separated: `Action\|Adventure` |
+| `release_month` | | 1–12 |
+| `release_day` | | 1–31 |
+| `release_year` | | e.g. 2026 |
+| `production_company` | | Studio name |
+| `director` | | |
+| `lead_actors` | | Pipe-separated: `Tom Hardy\|Cillian Murphy` |
+| `rating` | | 0.0–10.0 |
+| `vote_count` | | |
+| `popularity` | | TMDB popularity |
+| `language` | | ISO 639-1 code (default: `en`) |
+
+See `demo_movies.csv` (10 sample movies) for a ready-to-upload example.
 
 ---
 
 ## 🧪 Testing
 
-```bat
-:: backend
-cd backend
-.venv\Scripts\python -m pytest tests -q
+### Backend — 16 tests
 
-:: frontend
+```bat
+cd backend
+.venv\Scripts\python -m pytest -q
+```
+
+Tests run against an isolated temporary SQLite database (created via `DATABASE_URL` env var in `conftest.py`).
+
+| Test file | Coverage |
+|---|---|
+| `test_ml.py` | Model loading, single predict, batch predict, CSV predict, explain, thresholds, error handling |
+| `test_api.py` | Health endpoint, analytics endpoints, movies CRUD, training metrics, schema validation |
+
+### Frontend — 6 tests
+
+```bat
 cd frontend
-npm test
-npm run build   :: type-checks (tsc --noEmit) + production build
+npm test          # Vitest + jsdom
+npm run build     # TypeScript check (tsc --noEmit) + production build
 ```
 
 ---
 
 ## ⚙️ Configuration
 
-Copy `backend/.env.example` to `backend/.env` to override defaults (database URL, paths, training hyper-parameters, `ALLOW_RETRAIN`, `INR_PER_USD`, CORS origins…).
+Copy `backend/.env.example` to `backend/.env` and edit as needed:
+
+| Variable | Default | Description |
+|---|---|---|
+| `ENVIRONMENT` | `development` | `development` or `production` |
+| `DATABASE_URL` | `sqlite:///movie_box.db` | Database connection string |
+| `MODEL_PATH` | `models/revenue_model.keras` | Path to the trained Keras model |
+| `PREPROCESSOR_PATH` | `models/preprocessor.pkl` | Path to the fitted preprocessor |
+| `CORS_ORIGINS` | `http://localhost:5173,...` | Comma-separated allowed origins |
+| `ALLOW_RETRAIN` | `true` | Enable the `/api/retrain` endpoint |
+| `INR_PER_USD` | `83.0` | Exchange rate for ₹ display |
+| `MAX_UPLOAD_BYTES` | `5242880` | Max CSV upload size (5 MB) |
+| `LEARNING_RATE` | `0.001` | DNN learning rate |
+| `EPOCHS` | `300` | Max training epochs |
+| `BATCH_SIZE` | `128` | Training batch size |
+
+For the **frontend**, copy `frontend/.env.example` to `frontend/.env`:
+
+| Variable | Description |
+|---|---|
+| `VITE_API_BASE_URL` | Backend API URL (e.g. `http://localhost:8000/api`). Leave blank for dev — the Vite proxy handles it. |
 
 ---
 
-## 📚 Learning Notes (for the viva / report)
+## 🔬 ML Experiments
 
-- **Why `log1p(revenue)`?** Box-office revenue spans ~5 orders of magnitude; the log transform makes the target near-Gaussian and stabilises the regression.
-- **Why a DNN?** Tabular feature interactions (budget × genre × release window) are non-linear; the MLP captures them better than tree ensembles at equal feature engineering.
-- **Why Huber loss?** Robust to the fat-tailed residuals that outliers like *Avatar* produce — a compromise between MSE and MAE.
-- **Why BatchNorm + Dropout?** BatchNorm speeds convergence and stabilises training; Dropout prevents memorising the 3,165-row dataset.
-- **Confidence heuristic** = `0.55 · R² + 0.45 · known-feature fraction` — a transparent, explainable proxy (not a calibrated probability).
-- **Explainability** uses local input perturbation (±5% of feature std): the signed prediction change tells you which features push revenue up or down for *this* movie.
+All experiment artifacts are generated under `backend/models/evaluation/`.
+
+### Hyper-parameter tuning
+
+`backend/training/hyperparameter_tuning.py` sweeps **11 configurations** over layer width/depth, dropout strength, L2 and learning rate, scoring each by validation MAE.
+
+```bat
+cd backend
+.venv\Scripts\python training\hyperparameter_tuning.py
+```
+
+Top results (validation MAE, lower is better):
+
+| Config | Dropout | lr | L2 | Val MAE |
+|---|---|---|---|---|
+| **512 → 256 → 128 → 64** ✅ | 0.35 / 0.30 / 0.25 / 0.20 | 1e-3 | 1e-4 | **0.7209** |
+| 256 → 192 → 128 → 64 → 32 | 0.30 / 0.25 / 0.20 / 0.15 / 0.15 | 1e-3 | 1e-4 | 0.7319 |
+| 256 → 128 → 64 → 32 | 0.30 / 0.25 / 0.20 / 0.20 | 3e-3 | 1e-4 | 0.7457 |
+| 256 → 128 → 64 → 32 (baseline) | 0.30 / 0.25 / 0.20 / 0.20 | 1e-3 | 1e-4 | 0.7702 |
+
+The winning configuration became the production default, lifting test R²(log) from **0.653 → 0.685** and cutting test MAE from **$66.2 M → $55.4 M**.
+
+### Feature importance
+
+Permutation importance on the held-out test set (drop in MAE when each feature is shuffled):
+
+1. `vote_count_log` — audience reach
+2. `budget_log` — production scale
+3. `budget_per_runtime` — spend intensity
+4. `popularity` — pre-release buzz
+5. `release_year` + release-season features
+6. Genre flags: `Family`, `Science Fiction`, `Romance`, `Documentary` …
+
+Visualised live on the **Model Performance** page.
+
+### Baselines
+
+Eight classical regressors compete with the DNN on the same split and feature matrix: Linear Regression, Random Forest, Gradient Boosting, XGBoost, Extra Trees, AdaBoost, K-Nearest Neighbors, Decision Tree.
+
+---
+
+## 📚 Learning Notes (viva / report)
+
+| Question | Answer |
+|---|---|
+| **Why `log1p(revenue)`?** | Box-office revenue spans ~5 orders of magnitude; the log transform makes the target near-Gaussian and stabilises the regression. |
+| **Why a DNN?** | Tabular feature interactions (budget × genre × release window) are non-linear; the MLP captures them better than tree ensembles with equal feature engineering. |
+| **Why Huber loss?** | Robust to the fat-tailed residuals that outliers like *Avatar* produce — a compromise between MSE and MAE. |
+| **Why BatchNorm + Dropout?** | BatchNorm speeds convergence and stabilises training; Dropout prevents memorising the 3,165-row dataset. |
+| **Confidence heuristic** | `0.55 × R² + 0.45 × known-feature fraction` — a transparent, explainable proxy (not a calibrated probability). |
+| **Explainability** | Local input perturbation (±5% of feature std): the signed prediction change tells you which features push revenue up or down for *this* movie. |
+| **Why `budget_per_runtime`?** | Captures spend intensity — a $200 M film that runs 90 min is a very different proposition from one that runs 3 h. |
+| **Why frequency features?** | `director_frequency` and `company_frequency` proxy for industry experience without requiring external databases. |
 
 ---
 
