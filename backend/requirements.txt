@@ -1,3 +1,6 @@
+# Serve-time dependencies ONLY -- installed by Render and Vercel builds.
+# For local development/training use:  pip install -r requirements-dev.txt
+
 # Core API
 fastapi>=0.115,<1.0
 uvicorn[standard]>=0.32,<1.0
@@ -8,27 +11,17 @@ python-multipart>=0.0.12
 # Database
 SQLAlchemy>=2.0.36,<3.0
 
-# Data / ML
+# Data / ML serving
 numpy>=1.26
 pandas>=2.2,<3.0
 scipy>=1.13
 scikit-learn>=1.5,<2.0
 joblib>=1.4
 
-# Deep Learning (Python 3.12)
-# tensorflow-cpu: same code, CPU-only wheel (also used by Render/Linux builds).
-tensorflow-cpu>=2.19,<3.0
-
-# Optional boosting (falls back to sklearn GradientBoosting if missing)
-xgboost>=2.1
-
-# Evaluation / plotting (used by the training pipeline)
-matplotlib>=3.9
-seaborn>=0.13
+# Model runtime. LiteRT executes the committed .tflite artifact (~1 MB)
+# instead of pulling the ~600 MB TensorFlow wheel -- this keeps the Vercel
+# bundle far below its 500 MB function-size limit and speeds up cold starts.
+ai-edge-litert>=2.2,<3
 
 # Environment / misc
 python-dotenv>=1.0
-
-# Testing
-pytest>=8.0
-httpx>=0.27

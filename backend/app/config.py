@@ -35,6 +35,7 @@ class Settings(BaseSettings):
 
     # Model artifacts
     MODEL_PATH: str = str(MODELS_DIR / "revenue_model.keras")
+    MODEL_TFLITE_PATH: str = str(MODELS_DIR / "revenue_model.tflite")
     PREPROCESSOR_PATH: str = str(MODELS_DIR / "preprocessor.pkl")
     METADATA_PATH: str = str(MODELS_DIR / "model_metadata.json")
     METRICS_PATH: str = str(MODELS_DIR / "metrics.json")

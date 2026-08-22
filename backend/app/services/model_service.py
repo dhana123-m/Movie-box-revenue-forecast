@@ -1,7 +1,17 @@
 """Singleton service that loads the trained DNN + preprocessing pipeline.
 
-The Keras model is heavy, so it is loaded exactly once at application startup
-(lifespan) and reused for every prediction request.
+The model is loaded exactly once at application startup (lifespan) and reused
+for every prediction request.
+
+Serving runtimes, in order of preference:
+
+1. LiteRT (``.tflite`` artifact) -- a few MB, used on serverless/container
+   deploys (Vercel / Render) where the full TensorFlow wheel is too heavy.
+2. Keras (``.keras`` artifact)   -- fallback when only TensorFlow is
+   available, e.g. local development without ai-edge-litert installed.
+
+Both paths expose the same ``predict(X) -> (n, 1)`` interface used by
+:meth:`ModelService.predict_log` and :mod:`app.ml.explain`.
 """
 
 from __future__ import annotations
@@ -12,7 +22,6 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from tensorflow import keras
 
 from ..config import settings
 from ..ml.explain import SensitivityExplainer
@@ -26,9 +35,68 @@ DISCLAIMER = (
 )
 
 
+def _make_interpreter(model_path: str):
+    """Return a TFLite interpreter, trying every known runtime. None if absent."""
+    try:
+        from ai_edge_litert.interpreter import Interpreter  # type: ignore
+
+        return Interpreter(model_path=model_path), "LiteRT"
+    except ImportError:
+        pass
+    try:
+        from tflite_runtime.interpreter import Interpreter  # type: ignore
+
+        return Interpreter(model_path=model_path), "tflite-runtime"
+    except ImportError:
+        pass
+    try:
+        import tensorflow as tf  # type: ignore
+
+        return tf.lite.Interpreter(model_path=model_path), "tf.lite"
+    except ImportError:
+        return None, None
+
+
+class TFLiteModel:
+    """Minimal drop-in replacement for ``keras.Model.predict`` via LiteRT."""
+
+    def __init__(self, model_path: str | Path, runtime: str) -> None:
+        self.runtime = runtime
+        self.interpreter, _ = _make_interpreter(str(model_path))
+        self.interpreter.allocate_tensors()
+        self._input = self.interpreter.get_input_details()[0]
+        self._output = self.interpreter.get_output_details()[0]
+
+    def predict(self, X, verbose: int = 0) -> np.ndarray:
+        arr = np.asarray(X, dtype=np.float32)
+        if arr.ndim == 1:
+            arr = arr.reshape(1, -1)
+        n_rows, n_feats = arr.shape
+
+        try:
+            if list(self._input["shape"]) != [n_rows, n_feats]:
+                self.interpreter.resize_tensor_input(self._input["index"], [n_rows, n_feats])
+                self.interpreter.allocate_tensors()
+            self.interpreter.set_tensor(self._input["index"], arr)
+            self.interpreter.invoke()
+            return self.interpreter.get_tensor(self._output["index"])
+        except Exception:
+            # Some converters freeze the input batch to 1; fall back to a
+            # row-at-a-time loop (the MLP is tiny, so this stays fast).
+            self.interpreter.resize_tensor_input(self._input["index"], [1, n_feats])
+            self.interpreter.allocate_tensors()
+            out = np.empty((n_rows, 1), dtype=np.float32)
+            for i in range(n_rows):
+                self.interpreter.set_tensor(self._input["index"], arr[i : i + 1])
+                self.interpreter.invoke()
+                out[i] = self.interpreter.get_tensor(self._output["index"])
+            return out
+
+
 class ModelService:
     def __init__(self) -> None:
         self.model = None
+        self.backend: str = ""
         self.preprocessor: RevenuePreprocessor | None = None
         self.metadata: dict = {}
         self.metrics: dict = {}
@@ -37,12 +105,15 @@ class ModelService:
 
     # ------------------------------------------------------------ loading ----
     def load(self) -> None:
-        errors: list[str] = []
-
-        model_path = Path(settings.MODEL_PATH)
-        if not model_path.exists():
-            errors.append(f"Model file not found: {model_path.name}")
+        tflite_path = Path(settings.MODEL_TFLITE_PATH)
+        keras_path = Path(settings.MODEL_PATH)
         preprocessor_path = Path(settings.PREPROCESSOR_PATH)
+
+        errors: list[str] = []
+        if not tflite_path.exists() and not keras_path.exists():
+            errors.append(
+                f"Model files not found ({tflite_path.name} / {keras_path.name})"
+            )
         if not preprocessor_path.exists():
             errors.append(f"Preprocessor not found: {preprocessor_path.name}")
         if errors:
@@ -51,10 +122,25 @@ class ModelService:
                 "(`python training/train.py`) first. " + " ".join(errors)
             )
 
-        try:
-            self.model = keras.models.load_model(str(model_path))
-        except Exception as exc:  # pragma: no cover - defensive
-            raise ModelNotAvailableError(f"Failed to load Keras model: {exc}") from exc
+        if tflite_path.exists():
+            try:
+                interpreter, runtime = _make_interpreter(str(tflite_path))
+                if interpreter is not None:
+                    self.model = TFLiteModel(tflite_path, runtime or "tflite")
+                    self.backend = f"TensorFlow Lite ({self.model.runtime})"
+            except Exception:  # pragma: no cover - defensive
+                self.model = None
+
+        if self.model is None:
+            try:
+                from tensorflow import keras
+
+                self.model = keras.models.load_model(str(keras_path))
+                self.backend = f"TensorFlow {keras.backend.backend()}"
+            except Exception as exc:
+                raise ModelNotAvailableError(
+                    f"Failed to load model (tried LiteRT .tflite and Keras .keras): {exc}"
+                ) from exc
 
         try:
             self.preprocessor = joblib.load(str(preprocessor_path))
@@ -97,7 +183,7 @@ class ModelService:
         info = {
             "model": "Deep Neural Network (Multi-Layer Perceptron)",
             "model_version": self.model_version,
-            "framework": f"TensorFlow {keras.backend.backend()}",
+            "framework": self.backend,
             "feature_count": len(self.preprocessor.feature_columns),
             "features": self.preprocessor.feature_columns,
             "numeric_features": self.preprocessor.numeric_columns,

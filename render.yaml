@@ -1,7 +1,7 @@
 # Render blueprint -- https://render.com/docs/blueprint-spec
 #
 # Deploys two separate services:
-#   1. movie-box-office-backend   -- FastAPI + TensorFlow web service
+#   1. movie-box-office-backend   -- FastAPI + LiteRT (.tflite) web service
 #   2. movie-box-office-frontend  -- React static site that calls the API
 #
 # To deploy:

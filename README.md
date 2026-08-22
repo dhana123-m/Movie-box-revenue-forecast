@@ -146,17 +146,21 @@ git clone https://github.com/dhana123-m/Movie-box-revenue-forecast.git
 cd Movie-box-revenue-forecast
 ```
 
-### 2. Backend (FastAPI + TensorFlow)
+### 2. Backend (FastAPI + LiteRT)
 
 ```bat
 cd backend
 py -3.12 -m venv .venv
 .venv\Scripts\pip install --upgrade pip
-.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\pip install -r requirements-dev.txt
 .venv\Scripts\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
 Or simply run `run_backend.bat` (uses a pre-existing `.venv`).
+
+> `requirements.txt` holds the slim serve-time stack (LiteRT instead of
+> TensorFlow); `requirements-dev.txt` adds TensorFlow, XGBoost and plotting
+> for training/tuning/tests. Use `-dev` locally, plain for cloud deploys.
 
 - **Swagger UI**: http://localhost:8000/docs
 - **Health check**: http://localhost:8000/api/health
@@ -215,7 +219,7 @@ The repo ships a [Render Blueprint](https://render.com/docs/blueprint-spec) (`re
 
 | Service | Type | Description |
 |---|---|---|
-| `movie-box-office-backend` | Web (Python) | FastAPI + TensorFlow API |
+| `movie-box-office-backend` | Web (Python) | FastAPI + LiteRT (.tflite) API |
 | `movie-box-office-frontend` | Static Site | React SPA that calls the API |
 
 ### Deploy steps
@@ -234,7 +238,7 @@ The repo ships a [Render Blueprint](https://render.com/docs/blueprint-spec) (`re
 | **CORS** | Backend allows the frontend origin via `CORS_ORIGINS`. Dev origins (`localhost:5173`) are always allowed. |
 | **SPA routing** | Static site ships `frontend/public/_redirects` (`/* → /index.html`, LF-only enforced by `.gitattributes`). |
 | **Retraining** | Disabled in production (`ALLOW_RETRAIN=false`). |
-| **Build** | Free-tier has 512 MB RAM. TensorFlow installs fine; if it ever OOMs, bump to the paid `Starter` plan. |
+| **Build** | Slim serve-time stack (LiteRT, no TensorFlow) — installs in well under a minute on the free tier. |
 | **Cold start** | Free-tier sleeps after ~15 min idle. First request takes ~30–60 s to wake. |
 
 ---
@@ -251,9 +255,19 @@ The backend can also run on **Vercel** as a serverless Python function
 | Entry point | `api/index.py` exposes the FastASGI `app`; `vercel.json` rewrites every route to it |
 | Lifespan events | Vercel may not fire them → `ensure_initialized()` (tables + model + seed) is idempotent and called at import; warm requests skip it instantly |
 | Writable filesystem | Only `/tmp` is writable → `DATABASE_URL=sqlite:////tmp/movie_box.db`, re-seeded per cold start |
-| Bundle size | TensorFlow pushes the bundle past the standard 500 MB Python limit → runs as a **Large Function** (up to 5 GB, Fluid Compute). New projects are enrolled automatically; if the build complains about size, add env var `VERCEL_SUPPORT_LARGE_FUNCTIONS=1` and redeploy |
-| Cold start | TF import + model load ≈ 10–30 s on the first request (`maxDuration: 60`) |
+| Bundle size | Serving uses **LiteRT** (`ai-edge-litert`) on the committed 0.77 MB `.tflite` model instead of the ~600 MB TensorFlow wheel → the whole bundle stays well under the standard 500 MB function limit |
+| Cold start | A few seconds; no TF import, tiny interpreter load (`maxDuration: 60` for safety) |
 | Config defaults | Applied in `api/index.py` before settings load; dashboard env vars always win |
+
+### Model serving: LiteRT vs TensorFlow
+
+The trained Keras model is converted once with
+`python scripts/convert_to_tflite.py` (requires `requirements-dev.txt`)
+into `backend/models/revenue_model.tflite`, which is committed to git.
+Parity against the `.keras` original is < 0.001 % on revenue predictions.
+At runtime `ModelService` prefers LiteRT and falls back to TensorFlow/Keras
+when only the `.keras` artifact + full TF are available (e.g. local dev).
+Training dependencies live in `backend/requirements-dev.txt`.
 
 ### Deploy steps
 
@@ -320,7 +334,9 @@ Movie-box-revenue-forecast/
 │   │   ├── hyperparameter_tuning.py # 11-trial DNN grid search
 │   │   └── evaluate.py              # baseline models + evaluation plots
 │   │
-│   ├── scripts/download_data.py     # downloads TMDB 5000 CSVs
+│   ├── scripts/
+│   │   ├── download_data.py          # downloads TMDB 5000 CSVs
+│   │   └── convert_to_tflite.py      # .keras → .tflite + parity checks
 │   ├── tests/                       # pytest suite (16 tests, isolated DB)
 │   │   ├── conftest.py              # test fixtures: temp DB, TestClient
 │   │   ├── test_ml.py               # model loading, predict, explain, thresholds
@@ -331,14 +347,18 @@ Movie-box-revenue-forecast/
 │   │   └── processed/               # tmdb_5000_processed.csv (committed)
 │   │
 │   ├── models/                      # trained artifacts (committed to git)
-│   │   ├── revenue_model.keras      # Keras DNN (~2.4 MB)
+│   │   ├── revenue_model.keras      # Keras DNN (~2.4 MB, training master copy)
+│   │   ├── revenue_model.tflite     # LiteRT export (~0.8 MB, serving runtime)
 │   │   ├── preprocessor.pkl         # fitted RevenuePreprocessor
 │   │   ├── metrics.json             # test metrics (DNN + baselines)
 │   │   ├── model_metadata.json      # training date, TF version, config
 │   │   ├── feature_config.json      # feature names + numeric columns
 │   │   └── evaluation/              # training_history.json, plots, tuning results
 │   │
-│   ├── requirements.txt
+│   ├── api/index.py                 # Vercel serverless entrypoint
+│   ├── vercel.json                  # Vercel routes/function config
+│   ├── requirements.txt             # slim serve-time deps (Render/Vercel)
+│   ├── requirements-dev.txt         # adds TensorFlow/training/test tooling
 │   ├── .env.example
 │   └── movie_box.db                 # SQLite (auto-created, not committed)
 │
