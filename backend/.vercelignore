@@ -1,0 +1,19 @@
+# Files excluded from the Vercel serverless bundle (serve-time only).
+# Keep: app/, api/, models/*.keras|*.pkl|*.json, data/processed/*.csv,
+#       models/evaluation/training_history.json, requirements.txt
+
+# Raw dataset + dev tooling are not needed to serve predictions
+data/raw/
+tests/
+training/
+scripts/
+.pytest_cache/
+**/__pycache__/
+
+# Local databases never ship
+*.db
+
+# Evaluation plots / tuning tables are dev artifacts (training_history.json stays)
+models/evaluation/*.png
+models/evaluation/tuning_results.csv
+models/evaluation/tuning_results.json

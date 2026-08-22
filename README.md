@@ -239,6 +239,45 @@ The repo ships a [Render Blueprint](https://render.com/docs/blueprint-spec) (`re
 
 ---
 
+## ▲ Cloud Deployment (Vercel, free)
+
+The backend can also run on **Vercel** as a serverless Python function
+(`backend/api/index.py` + `backend/vercel.json`).
+
+### How it works
+
+| Concern | Solution |
+|---|---|
+| Entry point | `api/index.py` exposes the FastASGI `app`; `vercel.json` rewrites every route to it |
+| Lifespan events | Vercel may not fire them → `ensure_initialized()` (tables + model + seed) is idempotent and called at import; warm requests skip it instantly |
+| Writable filesystem | Only `/tmp` is writable → `DATABASE_URL=sqlite:////tmp/movie_box.db`, re-seeded per cold start |
+| Bundle size | TensorFlow pushes the bundle past the standard 500 MB Python limit → runs as a **Large Function** (up to 5 GB, Fluid Compute). New projects are enrolled automatically; if the build complains about size, add env var `VERCEL_SUPPORT_LARGE_FUNCTIONS=1` and redeploy |
+| Cold start | TF import + model load ≈ 10–30 s on the first request (`maxDuration: 60`) |
+| Config defaults | Applied in `api/index.py` before settings load; dashboard env vars always win |
+
+### Deploy steps
+
+1. Push this repository to GitHub.
+2. On [vercel.com](https://vercel.com): **Add New → Project**, import the repo.
+3. Configure the project:
+   - **Root Directory**: `backend`
+   - Framework Preset: **Other** (defaults are fine)
+4. Deploy. The function builds from `backend/requirements.txt` and serves all
+   routes under one URL (e.g. `https://<project>.vercel.app`).
+5. Verify: open `https://<project>.vercel.app/api/health`.
+
+### Notes
+
+- Retraining is force-disabled (`ALLOW_RETRAIN=false`).
+- To call the API from a browser app hosted elsewhere (Vercel frontend, Render,
+  localhost), add that origin to the `CORS_ORIGINS` environment variable in the
+  Vercel project settings, e.g.
+  `https://your-frontend.vercel.app,http://localhost:5173`.
+- SQLite is ephemeral per instance — fine for the demo dataset, not for
+  production writes. Swap `DATABASE_URL` to Postgres for persistence.
+
+---
+
 ## 📁 Project Structure
 
 ```

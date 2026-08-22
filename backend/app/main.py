@@ -12,6 +12,7 @@ application runs on a single origin (http://localhost:8000).
 """
 
 import logging
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator
@@ -39,28 +40,51 @@ from .utils.errors import register_exception_handlers
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------- initialisation --
+_init_lock = threading.Lock()
+_initialized = False
+
+
+def ensure_initialized() -> None:
+    """Idempotent one-time bootstrap: tables, model, seed data.
+
+    Runs from the ASGI lifespan on normal servers (uvicorn). Serverless
+    platforms (e.g. Vercel) may not fire lifespan events, so the serverless
+    entrypoint (api/index.py) calls this directly; safe to call repeatedly.
+    """
+    global _initialized
+    if _initialized:
+        return
+    with _init_lock:
+        if _initialized:
+            return
+
+        Base.metadata.create_all(bind=engine)
+
+        model_service = get_model_service()
+        try:
+            model_service.load()
+        except Exception:
+            # The health endpoint reports model_ready=false; prediction
+            # endpoints return a clean MODEL_UNAVAILABLE error until the
+            # artifacts exist.
+            pass
+
+        db = SessionLocal()
+        try:
+            seed_database(db)
+        except Exception:
+            pass
+        finally:
+            db.close()
+
+        _initialized = True
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Startup: create tables, load the model once, seed the database once."""
-    Base.metadata.create_all(bind=engine)
-
-    model_service = get_model_service()
-    try:
-        model_service.load()
-    except Exception:
-        # The health endpoint reports model_ready=false; prediction endpoints
-        # return a clean MODEL_UNAVAILABLE error until artifacts exist.
-        pass
-
-    db = SessionLocal()
-    try:
-        seed_database(db)
-    except Exception:
-        pass
-    finally:
-        db.close()
-
+    ensure_initialized()
     yield
 
 
