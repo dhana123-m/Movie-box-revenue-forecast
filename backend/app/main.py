@@ -99,9 +99,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Known deployment origins that must always be able to call the API, merged
+# with whatever CORS_ORIGINS provides (env var / dashboard setting).
+EXTRA_CORS_ORIGINS = (
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://dhana123-m.github.io",
+    "https://movie-box-office-frontend.onrender.com",
+)
+_cors_origins = list(dict.fromkeys([*settings.cors_origin_list, *EXTRA_CORS_ORIGINS]))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origin_list,
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -243,6 +243,28 @@ The repo ships a [Render Blueprint](https://render.com/docs/blueprint-spec) (`re
 
 ---
 
+## 🐙 Frontend on GitHub Pages (free)
+
+The React frontend also deploys to **GitHub Pages** via
+`.github/workflows/deploy-frontend.yml`, calling the Render backend.
+
+| Topic | Detail |
+|---|---|
+| Live URL | `https://dhana123-m.github.io/Movie-box-revenue-forecast/` |
+| API base | `https://movie-box-office-forecast.onrender.com/api` (baked at build time) |
+| SPA routing | `index.html` is copied to `404.html` so client-side routes work on deep links |
+| Base path | Built with `VITE_BASE_PATH=/Movie-box-revenue-forecast/` for the project-site sub-path |
+| CORS | The backend always allows the Pages origin (`EXTRA_CORS_ORIGINS` in `backend/app/main.py`) |
+
+### One-time setup
+
+1. Repo → **Settings → Pages** → **Build and deployment → Source: GitHub Actions**.
+   *(Private repos need GitHub Pro — free via the Student Developer Pack.)*
+2. Push to `main` (or run the workflow manually via **Actions → Deploy frontend → Run workflow**).
+3. Open the URL above. The backend auto-deploys the matching CORS fix on Render.
+
+---
+
 ## ▲ Cloud Deployment (Vercel, free)
 
 The backend can also run on **Vercel** as a serverless Python function
