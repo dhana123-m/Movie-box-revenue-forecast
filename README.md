@@ -186,11 +186,22 @@ Open http://localhost:5173 — the Vite dev proxy forwards all `/api` requests t
 
 ### 5. Retraining the model (optional)
 
+Two equivalent ways to retrain — both reuse the same canonical modules and
+produce identical artifacts:
+
 ```bat
 cd backend
 .venv\Scripts\python training\train.py          :: full pipeline: feature eng → train → evaluate
 .venv\Scripts\python training\hyperparameter_tuning.py  :: 11-trial grid search
 ```
+
+Or open the **Jupyter notebook** `notebooks/train_model.ipynb` (same pipeline,
+step-by-step with visual markdown and in-notebook plots). Regenerate it from
+`scripts/build_train_notebook.py` if you ever change the CLI pipeline.
+
+> After retraining, commit the regenerated `backend/models/*` artifacts and
+> re-run `backend\scripts\convert_to_tflite.py` so the slim serving model stays
+> in sync — cloud deploys pick the new weights up automatically.
 
 Or click **Retrain** in the Settings page (requires `ALLOW_RETRAIN=true`, which is the default in development).
 
@@ -411,7 +422,11 @@ Movie-box-revenue-forecast/
 │   └── .env.example
 │
 ├── notebooks/
-│   └── exploratory_analysis.ipynb   # Jupyter notebook: data exploration + visualisations
+│   ├── exploratory_analysis.ipynb   # Jupyter notebook: data exploration + visualisations
+│   └── train_model.ipynb            # Jupyter notebook: full model training (mirrors training/train.py)
+│
+├── scripts/
+│   └── build_train_notebook.py      # regenerates notebooks/train_model.ipynb
 │
 ├── demo_movies.csv                  # 10 sample movies for CSV-batch testing
 ├── render.yaml                      # Render blueprint (backend + frontend)
